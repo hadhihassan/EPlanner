@@ -16,7 +16,7 @@ const EventSchema = new Schema({
   participants: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   location: String,
   attachments: [AttachmentSchema],
-  status: { type: String, enum: ['upcoming','ongoing','completed'], default: 'upcoming' },
+  status: { type: String, enum: ['upcoming', 'ongoing', 'completed'], default: 'upcoming' },
   jobId: String
 }, { timestamps: true });
 

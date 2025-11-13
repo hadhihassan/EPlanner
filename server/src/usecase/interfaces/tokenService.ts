@@ -1,4 +1,7 @@
 export interface TokenService {
-  sign(payload: object): string;
-  verify(token: string): any;
+  signAccess(payload: object): string;
+  signRefresh(payload: object): string;
+  verifyAccess(token: string): any;
+  verifyRefresh(token: string): any;
+  generatePair(payload: object): { accessToken: string; refreshToken: string };
 }

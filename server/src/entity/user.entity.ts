@@ -5,7 +5,7 @@ export class User {
     public id: string | null,
     public name: string,
     public email: string,
-    public passwordHash: string,
-    public role: Role = 'participant'
+    public role: Role = 'participant',
+    public password?: string, 
   ) {}
 }
