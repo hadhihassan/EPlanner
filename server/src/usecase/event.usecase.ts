@@ -1,26 +1,23 @@
 import { MongoEventRepository } from '../adapters/repositories/mongoEvent.repo.js';
 import { Event } from '../entity/event.entity.js';
-import { scheduleEventReminder, removeAllEventJobs } from '../adapters/repositories/scheduler.repo.js';
+import { removeAllEventJobs, scheduleEventReminder } from '../adapters/repositories/scheduler.repo.js';
 import UserModel from '../frameworks/database/models/user.model.js';
-import JobMetaModel from '../frameworks/database/models/jobMeta.model.js';
+import { notifyEventCreated, notifyEventUpdated, notifyParticipantsAdded } from '../adapters/services/notification.service.js';
 
 export class EventUseCase {
   constructor(private readonly eventRepo: MongoEventRepository) { }
 
   async create(payload: Partial<Event>, user: any) {
     payload.organizer = user.id;
-    const event = await this.eventRepo.create(payload);
+    let event = await this.eventRepo.create(payload);
 
-    // Schedule reminder if event has a future start time
     if (event.startAt && new Date(event.startAt) > new Date()) {
       const jobId = await scheduleEventReminder(event.id!, new Date(event.startAt));
-      
-      // Save jobId to event
       if (jobId) {
-        await this.eventRepo.update(event.id!, { jobId });
+        event = await this.eventRepo.update(event.id!, { jobId });
       }
     }
-    
+    notifyEventCreated(event.id!, user.id)
     return event;
   }
 
@@ -32,52 +29,85 @@ export class EventUseCase {
     const event = await this.eventRepo.findById(id);
     if (!event) throw Object.assign(new Error('Event not found'), { status: 404 });
 
-    // RBAC visibility
     return event
-    // if (user.role === 'admin') return event;
-    // if (user.role === 'organizer' && event.organizer === user.id) return event;
-    // if (user.role === 'participant' && event.participants.includes(user.id)) return event;
-
-    throw Object.assign(new Error('Forbidden'), { status: 403 });
   }
 
-  async update(id: string, payload: Partial<Event>, user: any) {
+  async update(id: string, payload: Partial<Event> & {
+    newAttachments?: any[];
+    removedPublicIds?: string[];
+  }, user: any) {
     const existing = await this.eventRepo.findById(id);
     if (!existing) throw Object.assign(new Error('Event not found'), { status: 404 });
 
-    // Allow only admin or owner
-    if (user.role !== 'admin' && existing.organizer !== user.id)
+    if (existing.organizer.toString() !== user.id)
       throw Object.assign(new Error('Forbidden'), { status: 403 });
 
-    // If startAt is being updated, reschedule reminder
-    if (payload.startAt && payload.startAt !== existing.startAt) {
-      // Remove old jobs
-      await removeAllEventJobs(id);
-      
-      // Schedule new reminder if startAt is in the future
-      if (new Date(payload.startAt) > new Date()) {
-        const jobId = await scheduleEventReminder(id, new Date(payload.startAt));
-        if (jobId) {
-          payload.jobId = jobId;
+    let updatedAttachments = [...(existing.attachments || [])];
+
+    if (payload.removedPublicIds && payload.removedPublicIds.length > 0) {
+      updatedAttachments = updatedAttachments.filter(
+        att => !payload.removedPublicIds!.includes(att?.public_id)
+      );
+    }
+
+    if (payload.newAttachments && payload.newAttachments.length > 0) {
+      updatedAttachments.push(...payload.newAttachments);
+    }
+
+    const updatePayload = {
+      ...payload,
+      attachments: updatedAttachments
+    };
+
+    const updatedFields: string[] = [];
+    if (payload.title !== undefined && payload.title !== existing.title) updatedFields.push('title');
+    if (payload.description !== undefined && payload.description !== existing.description) updatedFields.push('description');
+    if (payload.location !== undefined && payload.location !== existing.location) updatedFields.push('location');
+
+    if (payload.startAt !== undefined) {
+      const newStartAt = new Date(payload.startAt).getTime();
+      const oldStartAt = new Date(existing.startAt).getTime();
+
+      if (newStartAt !== oldStartAt) {
+        await removeAllEventJobs(id);
+
+        if (new Date(payload.startAt) > new Date()) {
+          const jobId = await scheduleEventReminder(id, new Date(payload.startAt));
+          if (jobId) {
+            payload.jobId = jobId;
+          }
+        } else {
+          payload.jobId = null;
         }
-      } else {
-        payload.jobId = null;
       }
     }
 
-    return this.eventRepo.update(id, payload);
+    if (payload.endAt !== undefined) {
+      const newEndAt = payload.endAt ? new Date(payload.endAt).getTime() : null;
+      const oldEndAt = existing.endAt ? new Date(existing.endAt).getTime() : null;
+      if (newEndAt !== oldEndAt) updatedFields.push('end time');
+    }
+
+    if (payload.category !== undefined && payload.category !== existing.category) updatedFields.push('category');
+
+    const updatedEvent = await this.eventRepo.update(id, updatePayload);
+
+    if (updatedFields.length > 0) {
+      notifyEventUpdated(id, updatedFields);
+    }
+
+    return updatedEvent;
   }
 
   async remove(id: string, user: any) {
     const existing = await this.eventRepo.findById(id);
     if (!existing) throw Object.assign(new Error('Event not found'), { status: 404 });
 
-    if (user.role !== 'admin' && existing.organizer !== user.id)
+    if (existing.organizer !== user.id)
       throw Object.assign(new Error('Forbidden'), { status: 403 });
 
-    // Remove all scheduled jobs
     await removeAllEventJobs(id);
-    
+
     await this.eventRepo.delete(id);
     return true;
   }
@@ -86,10 +116,22 @@ export class EventUseCase {
     const existing = await this.eventRepo.findById(id);
     if (!existing) throw Object.assign(new Error('Event not found'), { status: 404 });
 
-    if (user.role !== 'admin' && existing.organizer !== user.id)
+    if (existing.organizer !== user.id)
       throw Object.assign(new Error('Forbidden'), { status: 403 });
 
-    await this.eventRepo.addUsers(id, participants);
+    const existingParticipants = existing.participants || [];
+    const newParticipants = participants.filter(
+      pid => !existingParticipants.includes(pid)
+    );
+
+    if (newParticipants.length === 0) {
+      return true;
+    }
+
+    await this.eventRepo.addUsers(id, newParticipants);
+
+    notifyParticipantsAdded(id, newParticipants);
+
     return true;
   }
 
@@ -97,7 +139,8 @@ export class EventUseCase {
     const event = await this.eventRepo.findById(eventId);
     if (!event) throw Object.assign(new Error('Event not found'), { status: 404 });
 
-    const excludedIds = [currentUserId, ...event.participants];
+    const participants = event.participants || [];
+    const excludedIds = [currentUserId, ...participants];
     const users = await UserModel.find({
       _id: { $nin: excludedIds },
       $and: [

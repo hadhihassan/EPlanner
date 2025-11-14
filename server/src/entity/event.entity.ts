@@ -1,9 +1,10 @@
 export type EventStatus = 'upcoming' | 'ongoing' | 'completed';
 
 export interface Attachment {
+  [x: string]: string;
   url: string;
-  filename?: string;
-  provider?: string;
+  filename: string;
+  provider: string;
 }
 
 export interface Event {

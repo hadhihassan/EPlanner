@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { EventUseCase } from '../../usecase/event.usecase.js';
 import { catchAsync } from '../../middlewares/catchAsync.js';
-import { getCloudinaryResourceType, uploadBufferToCloudinary } from '../services/upload.service.js';
+import { uploadEventFiles } from '../services/upload.service.js';
 
 export class EventController {
     constructor(private readonly eventUseCase: EventUseCase) { }
@@ -12,45 +12,7 @@ export class EventController {
         let uploadedFiles: any[] = [];
 
         if (files.length) {
-            console.log('Uploading files:', files.map(f => ({
-                name: f.originalname,
-                type: f.mimetype,
-                size: f.size
-            })));
-
-            uploadedFiles = await Promise.all(
-                files.map(async (file) => {
-                    try {
-                        const resourceType = getCloudinaryResourceType(file.mimetype);
-                        const result: any = await uploadBufferToCloudinary(
-                            file.buffer,
-                            'edentu/events',
-                            resourceType
-                        );
-
-                        console.log('Upload result:', {
-                            filename: file.originalname,
-                            url: result.secure_url,
-                            resourceType: result.resource_type,
-                            format: result.format
-                        });
-
-                        return {
-                            url: result.secure_url,
-                            public_id: result.public_id,
-                            filename: file.originalname,
-                            provider: 'cloudinary',
-                            size: file.size,
-                            type: file.mimetype,
-                            resource_type: result.resource_type,
-                            format: result.format,
-                        };
-                    } catch (error) {
-                        console.error(`Failed to upload ${file.originalname}:`, error);
-                        throw new Error(`Failed to upload ${file.originalname}: ${error?.message || ''}`);
-                    }
-                })
-            );
+            uploadedFiles = await uploadEventFiles(files)
         }
 
         const payload = {
@@ -73,7 +35,25 @@ export class EventController {
     });
 
     update = catchAsync(async (req: Request, res: Response) => {
-        const event = await this.eventUseCase.update(req.params.id, req.body, (req as any).user);
+        const user = (req as any).user;
+        const files = (req.files as Express.Multer.File[]) || [];
+        let newAttachments: any[] = [];
+
+        if (files.length > 0) {
+            newAttachments = await uploadEventFiles(files);
+        }
+
+        const payload = {
+            ...req.body,
+            ...(newAttachments.length > 0 && { newAttachments }),
+            ...(req.body.removedPublicIds && {
+                removedPublicIds: Array.isArray(req.body.removedPublicIds)
+                    ? req.body.removedPublicIds
+                    : JSON.parse(req.body.removedPublicIds || '[]')
+            })
+        };
+
+        const event = await this.eventUseCase.update(req.params.id, payload, user);
         res.json(event);
     });
 
@@ -93,26 +73,5 @@ export class EventController {
             (req as any).user.id
         );
         res.json(users);
-    });
-
-    uploadFiles = catchAsync(async (req: Request, res: Response) => {
-        const files = (req.files as Express.Multer.File[]) || [];
-        if (!files.length)
-            return res.status(400).json({ message: 'No files uploaded' });
-
-        const uploadedFiles = await Promise.all(
-            files.map(async (file) => {
-                const result: any = await uploadBufferToCloudinary(file.buffer);
-                return {
-                    url: result.secure_url,
-                    filename: file.originalname,
-                    provider: 'cloudinary',
-                    size: file.size,
-                    type: file.mimetype,
-                };
-            })
-        );
-
-        res.status(200).json({ attachments: uploadedFiles });
     });
 }

@@ -20,6 +20,16 @@ const EventSchema = new Schema({
   jobId: String
 }, { timestamps: true });
 
-EventSchema.index({ title: 'text', description: 'text', category: 'text' });
+EventSchema.index({
+  title: 'text',
+}, {
+  weights: {
+    title: 10,
+  },
+  name: 'text_search_index'
+});
+
+
+EventSchema.index({ status: 1, startAt: 1 });
 
 export default mongoose.model('Event', EventSchema);

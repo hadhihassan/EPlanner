@@ -11,6 +11,9 @@ import { MessageUseCase } from '../../usecase/message.usecase.js';
 import { MessageController } from '../../adapters/controllers/message.controller.js';
 import { UserController } from '../../adapters/controllers/user.controller.js';
 import { UserUseCase } from '../../usecase/user.usecase.js';
+import { MongoNotificationRepository } from '../../adapters/repositories/mongoNotification.repo.js';
+import { NotificationUseCase } from '../../usecase/notification.usecase.js';
+import { NotificationController } from '../../adapters/controllers/notification.controller.js';
 
 class Container {
   private services: Record<string, any> = {};
@@ -24,18 +27,21 @@ class Container {
     const userRepo = new MongoUserRepository();
     const eventRepo = new MongoEventRepository();
     const messageRepo = new MongoMessageRepository();
+    const notificationRepo = new MongoNotificationRepository();
 
     // UseCase
     const authUseCase = new AuthUseCase(userRepo, tokenService, hashService);
     const eventUseCase = new EventUseCase(eventRepo);
     const messageUseCase = new MessageUseCase(messageRepo);
     const userUseCase = new UserUseCase(userRepo);
+    const notificationUseCase = new NotificationUseCase(notificationRepo);
 
     // Controller
     const authController = new AuthController(authUseCase);
     const eventController = new EventController(eventUseCase)
     const messageController = new MessageController(messageUseCase)
     const userController = new UserController(userUseCase)
+    const notificationController = new NotificationController(notificationUseCase)
 
     // Register
     this.services = {
@@ -52,6 +58,9 @@ class Container {
       messageController,
       userUseCase,
       userController,
+      notificationRepo,
+      notificationUseCase,
+      notificationController,
     };
   }
 

@@ -13,9 +13,9 @@ router.use(authMiddleware);
 router.get('/', controller.list);
 router.get('/:id', controller.getById);
 
-// Organizer/Admin: create/update/delete
+// Organizer and Admin routes
 router.post('/', authorize('organizer', 'admin'), upload.array('files'), controller.create);
-router.put('/:id', authorize('organizer', 'admin'), controller.update);
+router.put('/:id', authorize('organizer', 'admin'), upload.array('files'), controller.update);
 router.delete('/:id', authorize('organizer', 'admin'), controller.remove);
 router.get('/:id/eligible-users', authorize('organizer', 'admin'), controller.listEligibleUsers);
 router.patch('/:id/add-participants', authorize('organizer', 'admin'), controller.addParticipants);

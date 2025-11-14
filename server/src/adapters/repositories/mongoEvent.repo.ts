@@ -7,13 +7,13 @@ export class MongoEventRepository {
     return this.map(doc);
   }
 
-  async updateJobId(id: string, jobId: string | null): Promise<void> {
-    await EventModel.findByIdAndUpdate(id, { jobId });
-  }
-
   async findById(id: string): Promise<Event | null> {
     const doc = await EventModel.findById(id).lean();
     return doc ? this.map(doc) : null;
+  }
+
+  async updateJobId(id: string, jobId: string | null): Promise<void> {
+    await EventModel.findByIdAndUpdate(id, { jobId });
   }
 
   async update(id: string, payload: Partial<Event>): Promise<Event> {
@@ -33,29 +33,46 @@ export class MongoEventRepository {
     );
   }
 
-  async list(user: any, filters: { q?: string; page?: number; limit?: number; status?: string }): Promise<Event[]> {
-    const { q, page = 1, limit = 10, status } = filters;
+  async list(user: any, filters: { q?: string; status?: string; page?: number; limit?: number }): Promise<{ events: Event[], total: number, page: number, totalPages: number }> {
+    const { q, status, page = 1, limit = 10 } = filters;
     const filter: any = {};
 
-    // Role-based filtering
     if (user.role !== 'admin') {
       filter.$or = [
         { organizer: user.id },
         { participants: user.id },
       ];
     }
-    if (status) filter.status = status;
-    if (q) filter.$text = { $search: q };
+
+    if (status?.trim()) {
+      filter.status = status;
+    }
+
+    if (q?.trim()) {
+      filter.$text = { $search: q };
+    }
 
     const skip = (page - 1) * limit;
+
+    const total = await EventModel.countDocuments(filter);
+
     const docs = await EventModel.find(filter)
-      .sort({ startAt: 1 })
+      .sort({
+        ...(q?.trim() ? { score: { $meta: "textScore" } } : {}),
+        startAt: 1
+      })
       .skip(skip)
       .limit(limit)
       .populate('organizer participants', 'name email role')
       .lean();
+    const totalPages = Math.ceil(total / limit);
 
-    return docs.map(this.map);
+    return {
+      events: docs.map(this.map),
+      total,
+      page,
+      totalPages
+    };
   }
 
   private map(doc: any): Event {

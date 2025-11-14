@@ -2,21 +2,15 @@ import QueueAdapter from '../../frameworks/jobs/queue.js';
 import JobMetaModel from '../../frameworks/database/models/jobMeta.model.js';
 
 /**
- * Schedule an event reminder job (1 hour before event start).
- * @param eventId - The ID of the event.
- * @param startAt - The event start date/time.
- * @returns The Job ID if scheduled, null otherwise.
+ * Schedule an event reminder job (one hourse before event start).
  */
 export const scheduleEventReminder = async (eventId: string, startAt: Date) => {
   const now = new Date();
-  const reminderTime = new Date(startAt.getTime() - 60 * 60 * 1000); // 1 hour before
+  const reminderTime = new Date(startAt.getTime() - 60 * 60 * 1000); //1 one house before
 
-  // Only schedule if reminder time is in the future
   if (reminderTime <= now) {
-    console.log('⏰ Event reminder time has passed, not scheduling');
     return null;
   }
-
   const delay = reminderTime.getTime() - now.getTime();
 
   try {
@@ -33,7 +27,6 @@ export const scheduleEventReminder = async (eventId: string, startAt: Date) => {
       jobId: `eventReminder:${eventId}:${reminderTime.getTime()}`
     });
 
-    // Save job metadata for management
     await JobMetaModel.create({
       event: eventId,
       queueName: 'reminders',
@@ -41,7 +34,6 @@ export const scheduleEventReminder = async (eventId: string, startAt: Date) => {
       type: 'eventReminder'
     });
 
-    console.log(`✅ Scheduled reminder for event ${eventId} at ${reminderTime.toISOString()}`);
     return job.id;
   } catch (error) {
     console.error('Error scheduling event reminder:', error);
@@ -50,68 +42,23 @@ export const scheduleEventReminder = async (eventId: string, startAt: Date) => {
 };
 
 /**
- * Remove a scheduled job (if event is deleted or rescheduled).
- * @param jobId - Job ID returned from BullMQ.
- */
-export const removeScheduledJob = async (jobId?: string | null) => {
-  if (!jobId) return;
-  try {
-    await QueueAdapter.remove(jobId);
-    await JobMetaModel.deleteOne({ jobId });
-  } catch (error) {
-    console.error('Error removing scheduled job:', error);
-  }
-};
-
-/**
- * Remove all scheduled jobs for an event.
- * @param eventId - The ID of the event.
- */
-export const removeAllEventJobs = async (eventId: string) => {
-  try {
-    const jobs = await JobMetaModel.find({ event: eventId });
-    await Promise.all(jobs.map(job => QueueAdapter.remove(job.jobId)));
-    await JobMetaModel.deleteMany({ event: eventId });
-    console.log(`✅ Removed ${jobs.length} scheduled job(s) for event ${eventId}`);
-  } catch (error) {
-    console.error('Error removing event jobs:', error);
-  }
-};
-
-/**
- * Schedule daily digest job (runs every day at 8 AM).
- * This should be called once at server startup.
+ * Schedule daily digest job (runs every day at 8 AM - PRODUCTION).
  */
 export const scheduleDailyDigest = async () => {
   try {
-    // Check if daily digest job already exists
     const existing = await JobMetaModel.findOne({ type: 'dailyDigest' });
     if (existing) {
-      console.log('📅 Daily digest job already scheduled');
       return existing.jobId;
     }
 
-    // Calculate delay until next 8 AM
-    const now = new Date();
-    const next8AM = new Date();
-    next8AM.setHours(8, 0, 0, 0);
-    
-    // If it's past 8 AM today, schedule for tomorrow
-    if (now >= next8AM) {
-      next8AM.setDate(next8AM.getDate() + 1);
-    }
-
-    const delay = next8AM.getTime() - now.getTime();
-
-    // Schedule recurring job (using repeat pattern)
+    // Schedule recurring job - EVERY DAY AT 8 AM (PRODUCTION)
     const job = await QueueAdapter.add(
       'dailyDigest',
       'dailyDigest',
       {},
       {
-        delay,
         repeat: {
-          pattern: '0 8 * * *', // Every day at 8 AM (cron pattern)
+          pattern: '0 8 * * *', // Every day at 8 AM (PRODUCTION)
           tz: 'UTC'
         },
         jobId: 'dailyDigest:recurring'
@@ -119,16 +66,53 @@ export const scheduleDailyDigest = async () => {
     );
 
     await JobMetaModel.create({
-      event: null as any,
+      event: null,
       queueName: 'dailyDigest',
-      jobId: job.id,
+      jobId: job.id || 'dailyDigest:recurring',
       type: 'dailyDigest'
     });
 
-    console.log(`✅ Scheduled daily digest job, next run at ${next8AM.toISOString()}`);
-    return job.id;
+    return job.id || 'dailyDigest:recurring';
   } catch (error) {
     console.error('Error scheduling daily digest:', error);
     return null;
+  }
+};
+
+// scheduler.repo.js
+
+/**
+ * Remove all scheduled jobs for an event.
+ * @param eventId - The ID of the event.
+ */
+export const removeAllEventJobs = async (eventId: string) => {
+  try {
+    // Find all job metadata for this event
+    const jobs = await JobMetaModel.find({ event: eventId });
+    
+    if (jobs.length === 0) {
+      console.log(`ℹ️ No scheduled jobs found for event ${eventId}`);
+      return;
+    }
+
+    // Remove jobs from queues
+    const removalPromises = jobs.map(async (job) => {
+      try {
+        await QueueAdapter.remove(job.jobId);
+        console.log(`✅ Removed job ${job.jobId} from queue ${job.queueName}`);
+      } catch (error: any) {
+        console.warn(`⚠️ Could not remove job ${job.jobId}:`, error?.message);
+      }
+    });
+
+    await Promise.all(removalPromises);
+
+    // Remove job metadata from database
+    await JobMetaModel.deleteMany({ event: eventId });
+    
+    console.log(`✅ Removed ${jobs.length} scheduled job(s) for event ${eventId}`);
+  } catch (error) {
+    console.error(`❌ Error removing jobs for event ${eventId}:`, error);
+    throw error; // Re-throw to handle in calling function
   }
 };

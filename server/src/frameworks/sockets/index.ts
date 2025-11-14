@@ -8,10 +8,12 @@ let io: Server | null = null;
 const messageRepo = new MongoMessageRepository();
 const tokenService = new JwtTokenService();
 
-// Store online users and their events
+// Store ALL online users globally
+const globalOnlineUsers = new Map(); // userId: { socketId, userData, lastSeen }
+
+// Store event-specific users (for chat)
 const onlineUsers = new Map(); // userId: { socketId, events: Set, userData }
 const eventUsers = new Map(); // eventId: Set of userIds
-const globalOnlineUsers = new Map();
 
 export const initSockets = (server: http.Server) => {
   io = new Server(server, {
@@ -27,8 +29,9 @@ export const initSockets = (server: http.Server) => {
       const token = socket.handshake.auth?.token;
       if (!token) return next(new Error('Unauthorized'));
 
-      const payload = tokenService.verifyAccess(token) as any;
-      (socket as any).userId = payload.id;
+      console.log('token', token)
+      const payload = tokenService.verifyAccess(token);
+      (socket as any).id = payload.id;
       (socket as any).userData = {
         id: payload.id,
         name: payload.name,
@@ -36,7 +39,7 @@ export const initSockets = (server: http.Server) => {
         avatar: payload.avatar,
         role: payload.role
       };
-
+      console.log(payload)
       next();
     } catch (err: any) {
       next(err);
@@ -44,19 +47,23 @@ export const initSockets = (server: http.Server) => {
   });
 
   io.on('connection', (socket) => {
+    console.log(socket)
     const userId = (socket as any).userId;
     const userData = (socket as any).userData;
 
     console.log(`🔌 ${userId} connected as ${socket.id}`);
 
-    // Add to global online users
+    // Join user's notification room
+    socket.join(`user:${userId}`);
+
+    // Add to GLOBAL online users (for participant list)
     globalOnlineUsers.set(userId, {
       socketId: socket.id,
       userData: userData,
       lastSeen: new Date()
     });
 
-    // Add to event-specific online users (your existing code)
+    // Add to event-specific online users (for chat)
     onlineUsers.set(userId, {
       socketId: socket.id,
       events: new Set(),
@@ -64,9 +71,8 @@ export const initSockets = (server: http.Server) => {
       lastSeen: new Date()
     });
 
-    // Broadcast both global and event-specific online users
+    // Broadcast GLOBAL online users to ALL clients
     broadcastGlobalOnlineUsers();
-    broadcastOnlineUsers();
 
     socket.on('joinEvent', async ({ eventId }) => {
       try {
@@ -77,6 +83,7 @@ export const initSockets = (server: http.Server) => {
         const user = onlineUsers.get(userId);
         if (user) {
           user.events.add(eventId);
+          user.lastSeen = new Date();
         }
 
         // Track event users
@@ -86,18 +93,14 @@ export const initSockets = (server: http.Server) => {
         eventUsers.get(eventId).add(userId);
 
         console.log(`User ${userId} joined event ${eventId}`);
-        console.log('Event users:', Array.from(eventUsers.get(eventId) || []));
 
         // Send chat history
         const history = await messageRepo.listByEvent(eventId);
         socket.emit('chatHistory', history);
 
-        // Send current online users for this event
+        // Send current online users for this event (for chat)
         const onlineEventUsers = getOnlineUsersForEvent(eventId);
         socket.emit('eventOnlineUsers', onlineEventUsers);
-
-        broadcastGlobalOnlineUsers();
-        io?.to(`event:${eventId}`).emit('eventOnlineUsers', onlineEventUsers);
 
         // Notify others about new user
         socket.to(room).emit('presenceUpdate', {
@@ -110,8 +113,6 @@ export const initSockets = (server: http.Server) => {
         // Broadcast updated online users for this event
         io?.to(room).emit('eventOnlineUsers', onlineEventUsers);
 
-        // Broadcast updated online users list
-        broadcastOnlineUsers();
       } catch (error) {
         console.error('Error in joinEvent:', error);
       }
@@ -154,10 +155,11 @@ export const initSockets = (server: http.Server) => {
       const room = `event:${eventId}`;
       socket.leave(room);
 
-      // Remove from tracking
+      // Remove from event tracking
       const user = onlineUsers.get(userId);
       if (user) {
         user.events.delete(eventId);
+        user.lastSeen = new Date();
       }
 
       if (eventUsers.has(eventId)) {
@@ -174,20 +176,39 @@ export const initSockets = (server: http.Server) => {
       // Broadcast updated online users for this event
       const onlineEventUsers = getOnlineUsersForEvent(eventId);
       io?.to(room).emit('eventOnlineUsers', onlineEventUsers);
-
-      // Broadcast updated online users list
-      broadcastOnlineUsers();
     });
 
-
     socket.on('disconnect', () => {
-      // Remove from both maps
+      console.log(`🔌 ${userId} disconnected`);
+
+      // Get all events this user was in before removing
+      const userEvents = onlineUsers.get(userId)?.events || new Set();
+
+      // Remove from BOTH global and event-specific tracking
       globalOnlineUsers.delete(userId);
       onlineUsers.delete(userId);
 
-      // Broadcast updates
+      // Remove from all event user lists
+      userEvents.forEach(eventId => {
+        if (eventUsers.has(eventId)) {
+          eventUsers.get(eventId).delete(userId);
+
+          // Notify event room about user leaving
+          io?.to(`event:${eventId}`).emit('presenceUpdate', {
+            userId,
+            online: false,
+            userData: userData,
+            action: 'left'
+          });
+
+          // Broadcast updated online users for this event
+          const onlineEventUsers = getOnlineUsersForEvent(eventId);
+          io?.to(`event:${eventId}`).emit('eventOnlineUsers', onlineEventUsers);
+        }
+      });
+
+      // Broadcast updated GLOBAL online users to ALL clients
       broadcastGlobalOnlineUsers();
-      broadcastOnlineUsers();
     });
   });
 
@@ -210,26 +231,7 @@ function getOnlineUsersForEvent(eventId: string) {
   }).filter(Boolean);
 }
 
-function broadcastOnlineUsersCount() {
-  const onlineCount = onlineUsers.size;
-  io?.emit('onlineUsersCount', { count: onlineCount });
-}
-
-// Utility functions
-export const getOnlineUsers = () => {
-  return Array.from(onlineUsers.entries()).map(([userId, data]) => ({
-    userId,
-    userData: data.userData,
-    lastSeen: data.lastSeen,
-    events: Array.from(data.events)
-  }));
-};
-
-export const getEventOnlineUsers = (eventId: string) => {
-  return getOnlineUsersForEvent(eventId);
-};
-
-// Broadcast all globally online users
+// Broadcast ALL globally online users to EVERY client
 function broadcastGlobalOnlineUsers() {
   const globalUsersList = Array.from(globalOnlineUsers.entries()).map(([userId, data]) => ({
     userId,
@@ -240,16 +242,17 @@ function broadcastGlobalOnlineUsers() {
   io?.emit('globalOnlineUsers', globalUsersList);
 }
 
-// Your existing function for event-specific online users
-function broadcastOnlineUsers() {
-  const onlineUsersList = Array.from(onlineUsers.entries()).map(([userId, data]) => ({
+// Utility functions
+export const getOnlineUsers = () => {
+  return Array.from(globalOnlineUsers.entries()).map(([userId, data]) => ({
     userId,
     userData: data.userData,
-    lastSeen: data.lastSeen,
-    events: Array.from(data.events)
+    lastSeen: data.lastSeen
   }));
+};
 
-  io?.emit('onlineUsers', onlineUsersList);
-}
+export const getEventOnlineUsers = (eventId: string) => {
+  return getOnlineUsersForEvent(eventId);
+};
 
 export const getIO = () => io;

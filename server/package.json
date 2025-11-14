@@ -7,7 +7,7 @@
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
     "build": "tsc",
-    "worker": "ts-node-dev --respawn --transpile-only src/frameworks/jobs/worker.ts"
+    "worker": "tsx watch src/frameworks/jobs/worker.ts"
   },
   "keywords": [],
   "author": "",
