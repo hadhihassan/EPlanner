@@ -4,11 +4,11 @@ import { TokenService } from '../../usecase/interfaces/tokenService.js';
 
 export class JwtTokenService implements TokenService {
   signAccess(payload: object): string {
-    return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: env.ACCESS_TOKEN_EXPIRY });
+    return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: env.ACCESS_TOKEN_EXPIRY as jwt.SignOptions['expiresIn'] });
   }
 
   signRefresh(payload: object): string {
-    return jwt.sign(payload, env.JWT_REFRESH_SECRET, { expiresIn: env.REFRESH_TOKEN_EXPIRY });
+    return jwt.sign(payload, env.JWT_REFRESH_SECRET, { expiresIn: env.REFRESH_TOKEN_EXPIRY as jwt.SignOptions['expiresIn'] });
   }
 
   verifyAccess(token: string): any {

@@ -7,14 +7,8 @@ import { Badge } from "../ui/badge";
 import { useToast } from "../ui/use-toast";
 import Spinner from "../ui/Spinner";
 import { addParticipantsAPI, getEligibleUsersAPI } from "../../api/events.api";
-
-interface User {
-  _id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  role?: string;
-}
+import type { User } from "../../types/auth.types";
+import { AxiosError } from "axios";
 
 interface AddUsersProps {
   onUsersAdd: (users: User[]) => void;
@@ -29,7 +23,7 @@ export default function AddUsers({
   maxUsers,
   placeholder = "Search users...",
   compact = false,
-  eventId
+  eventId,
 }: AddUsersProps) {
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
@@ -39,9 +33,10 @@ export default function AddUsers({
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchAvailableUsers()
-  }, [])
-  
+    if (isOpen) {
+      fetchAvailableUsers();
+    }
+  }, [isOpen]);
 
   const filteredUsers = availableUsers.filter(
     (user) =>
@@ -67,7 +62,9 @@ export default function AddUsers({
   };
 
   const handleRemoveUser = (userId: string) => {
-    const newSelectedUsers = selectedUsers.filter((user) => user._id !== userId);
+    const newSelectedUsers = selectedUsers.filter(
+      (user) => user._id !== userId
+    );
     setSelectedUsers(newSelectedUsers);
     onUsersAdd(newSelectedUsers);
   };
@@ -85,8 +82,28 @@ export default function AddUsers({
 
       const participantsId = selectedUsers.map((users) => users._id);
       await addParticipantsAPI(eventId, participantsId);
-    } catch (error) {
-      console.error("Failed to fetch event:", error);
+
+      toast({
+        title: "Participants added!",
+        description: `Successfully added ${selectedUsers.length} participant(s) to the event.`,
+      });
+
+      setSelectedUsers([]);
+      onUsersAdd([]);
+    } catch (error: unknown) {
+      let errorMessage = "An error occurred. Please try again.";
+
+      if (error instanceof AxiosError) {
+        errorMessage =
+          error.response?.data?.message || error.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      toast({
+        title: "Failed to add participants",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -94,17 +111,16 @@ export default function AddUsers({
 
   const fetchAvailableUsers = async () => {
     try {
-        const res = await getEligibleUsersAPI(eventId);
-        setAvailableUsers(res)
+      const res = await getEligibleUsersAPI(eventId);
+      setAvailableUsers(res);
     } catch (error) {
       console.error("Failed to fetch availables users:", error);
     }
-  }
+  };
 
   if (compact) {
     return (
       <div className="relative">
-        {/* Compact Trigger Button */}
         <Button
           onClick={() => setIsOpen(!isOpen)}
           variant="outline"
@@ -127,7 +143,6 @@ export default function AddUsers({
           )}
         </Button>
 
-        {/* Dropdown */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -204,12 +219,6 @@ export default function AddUsers({
                         onClick={() => handleAddUser(user)}
                         className="flex items-center gap-3 w-full p-3 hover:bg-gray-50 transition-colors text-left"
                       >
-                        {/* <Avatar className="w-8 h-8">
-                          <AvatarImage src={user.avatar} />
-                          <AvatarFallback className="text-sm">
-                            {user.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar> */}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm text-gray-900 truncate">
                             {user.name}
@@ -258,12 +267,6 @@ export default function AddUsers({
               variant="secondary"
               className="flex items-center gap-2 py-1.5 px-3"
             >
-              {/* <Avatar className="w-4 h-4">
-                <AvatarImage src={user.avatar} />
-                <AvatarFallback className="text-xs">
-                  {user.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar> */}
               <span className="text-sm">{user.name}</span>
               <button
                 onClick={() => handleRemoveUser(user._id)}
@@ -315,12 +318,6 @@ export default function AddUsers({
                     onClick={() => handleAddUser(user)}
                     className="flex items-center gap-3 w-full p-3 hover:bg-gray-50 transition-colors text-left"
                   >
-                    {/* <Avatar className="w-8 h-8">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback className="text-sm">
-                        {user.name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar> */}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm text-gray-900 truncate">
                         {user.name}

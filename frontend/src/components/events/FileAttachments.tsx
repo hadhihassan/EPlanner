@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// components/events/FileAttachments.tsx
 import { motion } from "framer-motion";
 import { FileText, Download, ExternalLink, Image, File } from "lucide-react";
 import { Button } from "../../components/ui/Button";
@@ -11,25 +9,19 @@ interface FileAttachmentsProps {
   eventId: string;
 }
 
-export default function FileAttachments({ attachments, eventId }: FileAttachmentsProps) {
-  const getFileIcon = (filename: string, provider: string) => {
-    const extension = filename.split('.').pop()?.toLowerCase();
-    
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) {
+export default function FileAttachments({ attachments }: FileAttachmentsProps) {
+  const getFileIcon = (filename: string) => {
+    const extension = filename.split(".").pop()?.toLowerCase();
+
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension || "")) {
       return <Image className="w-5 h-5 text-blue-500" />;
     }
-    
+
     return <File className="w-5 h-5 text-gray-500" />;
   };
 
-  const getFileSize = (url: string): string => {
-    // This would typically come from your API
-    return '2.4 MB';
-  };
-
   const handleDownload = (attachment: IAttachment) => {
-    // Implement download logic
-    window.open(attachment.url, '_blank');
+    window.open(attachment.url, "_blank");
   };
 
   return (
@@ -55,19 +47,13 @@ export default function FileAttachments({ attachments, eventId }: FileAttachment
             transition={{ delay: index * 0.1 }}
             className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
           >
-            {getFileIcon(attachment.filename, attachment.provider)}
-            
+            {getFileIcon(attachment.filename)}
+
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-900 truncate">
                   {attachment.filename}
                 </span>
-                <Badge variant="outline" className="text-xs">
-                  {attachment.provider}
-                </Badge>
-              </div>
-              <div className="text-xs text-gray-500">
-                {getFileSize(attachment.url)}
               </div>
             </div>
 

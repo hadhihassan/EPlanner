@@ -1,95 +1,77 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Paperclip, Send } from "lucide-react";
-import { Socket } from "socket.io-client";
-import { useAppSelector } from "../../store/hooks";
+import { Send } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { Button } from "../ui/Button";
 import Input from "../ui/Input";
-import { Badge } from "../ui/badge";
+import { useToast } from "../ui/use-toast";
+import {
+  setMessages,
+  addMessage,
+  clearChat,
+  selectMessagesByEvent,
+} from "../../store/slices/chatSlice";
 import type { IMessage } from "../../types/message.types";
 import { DateFormatter } from "../../utils/dateFormator";
+import { palette } from "./constants";
+import { useGlobalSocket } from "../../context/SocketContext";
 
 interface Props {
   eventId: string;
-  socket: Socket | null;
 }
 
-export default function ChatBox({ eventId, socket }: Props) {
-  const [messages, setMessages] = useState<IMessage[]>([]);
+export default function ChatBox({ eventId }: Props) {
+  const dispatch = useAppDispatch();
+  const { socket, isConnected } = useGlobalSocket();
   const [text, setText] = useState("");
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const [isConnected, setIsConnected] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const user = useAppSelector((s) => s.auth.user);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const hasJoinedRef = useRef(false);
+  const { toast } = useToast();
 
-  // Memoized event handlers
-  const handleChatHistory = useCallback((history: IMessage[]) => {
-    console.log("📜 Chat history received:", history);
-    setMessages(history || []);
-  }, []);
+  const messages = useAppSelector(selectMessagesByEvent(eventId));
 
-  const handleNewMessage = useCallback((msg: IMessage) => {
-    console.log("💬 New message received:", msg);
-    setMessages((prev) => [...prev, msg]);
-  }, []);
+  const handleChatHistory = useCallback(
+    (history: IMessage[]) => {
+      dispatch(setMessages({ eventId, messages: history || [] }));
+    },
+    [eventId, dispatch]
+  );
 
-  const handleUserTyping = useCallback((data: { userId: string; isTyping: boolean; userData?: any }) => {
-    setTypingUsers((prev) => {
-      const newSet = new Set(prev);
-      if (data.isTyping) {
-        newSet.add(data.userId);
-      } else {
-        newSet.delete(data.userId);
-      }
-      return newSet;
-    });
-  }, []);
+  const handleNewMessage = useCallback(
+    (msg: IMessage) => {
+      dispatch(addMessage({ eventId, message: msg }));
+    },
+    [eventId, dispatch]
+  );
 
   const handleConnect = useCallback(() => {
-    console.log("✅ ChatBox: Socket connected");
-    setIsConnected(true);
-
     if (socket && !hasJoinedRef.current) {
-      console.log("🎯 Joining event:", eventId);
       socket.emit("joinEvent", { eventId });
       hasJoinedRef.current = true;
     }
   }, [eventId, socket]);
 
   const handleDisconnect = useCallback(() => {
-    console.log("❌ ChatBox: Socket disconnected");
-    setIsConnected(false);
     hasJoinedRef.current = false;
   }, []);
 
   useEffect(() => {
     if (!socket) {
-      console.log("❌ No socket available in ChatBox");
       return;
     }
 
-    console.log("🔌 Setting up socket listeners for event:", eventId);
-
-    // Set up listeners
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("chatHistory", handleChatHistory);
     socket.on("newChatMessage", handleNewMessage);
-    socket.on("userTyping", handleUserTyping);
 
-    // If already connected, join event
     if (socket.connected && !hasJoinedRef.current) {
-      console.log("🎯 Socket already connected, joining event:", eventId);
       socket.emit("joinEvent", { eventId });
       hasJoinedRef.current = true;
     }
 
-    // Cleanup function
     return () => {
-      console.log("🧹 Cleaning up ChatBox socket listeners for event:", eventId);
-
       if (socket && hasJoinedRef.current) {
         socket.emit("leaveEvent", { eventId });
         hasJoinedRef.current = false;
@@ -99,48 +81,45 @@ export default function ChatBox({ eventId, socket }: Props) {
       socket.off("disconnect", handleDisconnect);
       socket.off("chatHistory", handleChatHistory);
       socket.off("newChatMessage", handleNewMessage);
-      socket.off("userTyping", handleUserTyping);
 
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+      dispatch(clearChat({ eventId }));
     };
-  }, [socket, eventId, handleConnect, handleDisconnect, handleChatHistory, handleNewMessage, handleUserTyping]);
+  }, [
+    socket,
+    eventId,
+    handleConnect,
+    handleDisconnect,
+    handleChatHistory,
+    handleNewMessage,
+    dispatch,
+  ]);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleTyping = () => {
-    if (!socket || !socket.connected) return;
-
-    socket.emit("typing", { eventId, isTyping: true });
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit("typing", { eventId, isTyping: false });
-    }, 1000);
-  };
-
   const sendMessage = () => {
     if (!socket || !socket.connected) {
-      console.error("❌ Cannot send message: Socket not connected");
+      toast({
+        title: "Connection error",
+        description: "Please check your internet connection and try again.",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!text.trim()) {
-      console.warn("⚠️ Cannot send empty message");
+      toast({
+        title: "Empty message",
+        description: "Please enter a message to send.",
+        variant: "destructive",
+      });
       return;
     }
 
-    console.log("📤 Sending message:", text);
     socket.emit("eventChatMessage", { eventId, text });
     setText("");
-
-    socket.emit("typing", { eventId, isTyping: false });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -159,17 +138,6 @@ export default function ChatBox({ eventId, socket }: Props) {
   };
 
   const getUserColor = (userId: string | undefined, name?: string) => {
-    const palette = [
-      "bg-blue-500",
-      "bg-green-500",
-      "bg-indigo-500",
-      "bg-purple-500",
-      "bg-pink-500",
-      "bg-orange-500",
-      "bg-teal-500",
-      "bg-rose-500",
-      "bg-amber-500",
-    ];
     if (!userId && !name) return "bg-gray-400";
     const hash = [...(userId || name || "default")].reduce(
       (acc, ch) => acc + ch.charCodeAt(0),
@@ -178,21 +146,19 @@ export default function ChatBox({ eventId, socket }: Props) {
     return palette[hash % palette.length];
   };
 
-  const typingUsersArray = Array.from(typingUsers);
-
   return (
     <div className="flex flex-col h-[480px] bg-white border rounded-xl shadow-sm overflow-hidden">
-      {/* Header */}
+      {/* Header with connection status */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h3 className="text-white font-semibold">Event Chat</h3>
-          <Badge variant="secondary" className="bg-white/20 text-white">
-            {isConnected ? 'Online' : 'Offline'}
-          </Badge>
+          <div
+            className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"}`}
+          ></div>
         </div>
-        <Badge variant="secondary" className="bg-white/20 text-white">
-          {messages.length} messages
-        </Badge>
+        <div className="text-blue-100 text-sm">
+          {isConnected ? "Connected" : "Connecting..."}
+        </div>
       </div>
 
       {/* Messages */}
@@ -224,7 +190,9 @@ export default function ChatBox({ eventId, socket }: Props) {
                 >
                   <div className="flex items-center gap-2 mb-1 text-xs text-gray-500">
                     <span className="font-medium text-gray-700">
-                      {isOwn(m) ? "You" : m.user?.name || m.user?.email || "Unknown User"}
+                      {isOwn(m)
+                        ? "You"
+                        : m.user?.name || m.user?.email || "Unknown User"}
                     </span>
                     <span>
                       {DateFormatter.formatMessageTimestamp(m.createdAt)}
@@ -235,7 +203,7 @@ export default function ChatBox({ eventId, socket }: Props) {
                     className={`px-4 py-2 rounded-2xl ${
                       isOwn(m)
                         ? "bg-blue-600 text-white rounded-br-none"
-                        : "bg-white text-gray-800 rounded-bl-none shadow-sm"
+                        : "bg-white text-gray-800 rounded-bl-none shadow-sm border"
                     }`}
                   >
                     {m.text}
@@ -245,58 +213,26 @@ export default function ChatBox({ eventId, socket }: Props) {
             ))}
           </AnimatePresence>
         )}
-
-        {/* Typing Indicator */}
-        {typingUsersArray.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-2 text-sm text-gray-500 italic mt-2"
-          >
-            <div className="flex gap-1">
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-              <div
-                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                style={{ animationDelay: "0.15s" }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                style={{ animationDelay: "0.3s" }}
-              ></div>
-            </div>
-            <span>
-              {typingUsersArray.length === 1
-                ? "Someone is typing..."
-                : `${typingUsersArray.length} people are typing...`}
-            </span>
-          </motion.div>
-        )}
-
         <div ref={bottomRef} />
       </div>
 
       {/* Input Area */}
       <div className="border-t bg-white p-3 flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-10 w-10">
-          <Paperclip className="w-4 h-4" />
-        </Button>
-
         <Input
           value={text}
           onChange={(e) => {
             setText(e.target.value);
-            handleTyping();
           }}
           onKeyDown={handleKeyPress}
           placeholder="Type your message..."
-          className="flex-1 outline-none"
+          className="flex-1"
           disabled={!isConnected}
         />
 
         <Button
           onClick={sendMessage}
           disabled={!text.trim() || !isConnected}
-          className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+          className="bg-blue-600 hover:bg-blue-700 text-white gap-2 disabled:opacity-50"
         >
           <Send className="w-4 h-4" />
           Send

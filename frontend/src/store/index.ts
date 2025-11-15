@@ -1,13 +1,15 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import eventsReducer from './slices/eventsSlice';
-// import notificationsReducer from './slices/notificationsSlice';
+import notificationsReducer from './slices/notificationsSlice';
+import chatReducer from './slices/chatSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     events: eventsReducer,
-    // notifications: notificationsReducer,
+    notifications: notificationsReducer,
+    chat: chatReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

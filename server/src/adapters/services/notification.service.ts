@@ -16,34 +16,34 @@ export async function createAndEmitNotification(
   metadata?: any
 ) {
   try {
-    // Create notification in database
     const notification = await NotificationModel.create({
       userId,
       eventId,
       type,
       title,
       content,
-      metadata
+      metadata,
+      read: false
     });
 
-    // Emit notification via socket if user is online
     const io = getIO();
     if (io) {
       io.to(`user:${userId}`).emit('notification', {
         id: notification._id.toString(),
         userId,
-        eventId: eventId || undefined,
+        eventId: eventId || null,
         type,
         title,
         content,
         read: false,
-        createdAt: notification.createdAt
+        metadata: metadata || {},
+        createdAt: notification.createdAt,
+        updatedAt: notification.updatedAt
       });
     }
 
     return notification;
   } catch (error) {
-    console.error('Error creating notification:', error);
     return null;
   }
 }
@@ -62,14 +62,11 @@ export async function sendNotificationWithEmail(
   metadata?: any
 ) {
   try {
-    // Get user email
     const user = await UserModel.findById(userId).lean();
     if (!user || !user.email) {
-      console.log(`User ${userId} not found or has no email`);
       return;
     }
-    console.log('last =>', arguments)
-    // Send email
+
     await sendEmail({
       to: user.email,
       subject: emailSubject,
@@ -77,8 +74,8 @@ export async function sendNotificationWithEmail(
       html: emailContent
     });
 
-    // Create in-app notification
     await createAndEmitNotification(userId, type, title, content, eventId, metadata);
+    
   } catch (error) {
     console.error(`Error sending notification to user ${userId}:`, error);
   }
@@ -93,14 +90,15 @@ export async function notifyEventCreated(eventId: string, organizerId: string) {
       .populate('organizer participants', 'email name _id')
       .lean();
 
-    if (!event) return;
+    if (!event) {
+      return;
+    }
 
     const organizer = event.organizer as any;
     const participants = (event.participants || []) as any[];
     const eventStartTime = new Date(event.startAt).toLocaleString();
 
-    // Notify organizer
-    if (organizer && organizer.email) {
+    if (organizer && organizer._id) {
       const emailSubject = `Event Created: ${event.title}`;
       const emailContent = `
         <h2>Event Created Successfully</h2>
@@ -129,7 +127,7 @@ export async function notifyEventCreated(eventId: string, organizerId: string) {
       
       await Promise.all(
         participants.map(async (participant: any) => {
-          if (!participant || !participant.email) return;
+          if (!participant || !participant._id) return;
 
           const emailContent = `
             <h2>New Event Invitation</h2>
@@ -153,8 +151,6 @@ export async function notifyEventCreated(eventId: string, organizerId: string) {
         })
       );
     }
-
-    console.log(`✅ Notified ${1 + participants.length} users about event creation: ${eventId}`);
   } catch (error) {
     console.error('Error notifying event creation:', error);
   }
@@ -169,7 +165,9 @@ export async function notifyEventUpdated(eventId: string, updatedFields: string[
       .populate('organizer participants', 'email name _id')
       .lean();
 
-    if (!event) return;
+    if (!event) {
+      return;
+    }
 
     const organizer = event.organizer as any;
     const participants = (event.participants || []) as any[];
@@ -186,7 +184,7 @@ export async function notifyEventUpdated(eventId: string, updatedFields: string[
     
     await Promise.all(
       uniqueUsers.map(async (user: any) => {
-        if (!user || !user.email) return;
+        if (!user || !user._id) return;
 
         const emailContent = `
           <h2>Event Updated</h2>
@@ -209,8 +207,6 @@ export async function notifyEventUpdated(eventId: string, updatedFields: string[
         );
       })
     );
-
-    console.log(`✅ Notified ${uniqueUsers.length} users about event update: ${eventId}`);
   } catch (error) {
     console.error('Error notifying event update:', error);
   }
@@ -221,21 +217,21 @@ export async function notifyEventUpdated(eventId: string, updatedFields: string[
  */
 export async function notifyParticipantsAdded(eventId: string, newParticipantIds: string[]) {
   try {
-    console.log('nofificaion server reachdd')
     const event = await EventModel.findById(eventId)
-      .populate('organizer participants', 'email name _id')
+      .populate('organizer', 'email name _id')
       .lean();
-    console.log("event details => ", event?.organizer, event?.participants)
-    if (!event) return;
+
+    if (!event) {
+      return;
+    }
 
     const organizer = event.organizer as any;
     const eventStartTime = new Date(event.startAt).toLocaleString();
 
-    // Get new participants
     const newParticipants = await UserModel.find({
       _id: { $in: newParticipantIds }
     }).lean();
-    console.log('new participants', newParticipantIds)
+
     const emailSubject = `You've been added to: ${event.title}`;
 
     await Promise.all(
@@ -251,7 +247,6 @@ export async function notifyParticipantsAdded(eventId: string, newParticipantIds
           ${event.description ? `<p>${event.description}</p>` : ''}
           <p>We look forward to seeing you there!</p>
         `;
-        console.log("sending");
         
         await sendNotificationWithEmail(
           participant._id.toString(),
@@ -263,12 +258,11 @@ export async function notifyParticipantsAdded(eventId: string, newParticipantIds
           eventId,
           { eventTitle: event.title, startAt: event.startAt, organizerName: organizer.name }
         );
-        console.log("sended");
       })
     );
 
     // Also notify organizer about new participants
-    if (organizer && organizer.email) {
+    if (organizer && organizer._id) {
       const participantNames = newParticipants.map((p: any) => p.name).join(', ');
       const emailContent = `
         <h2>Participants Added</h2>
@@ -288,10 +282,7 @@ export async function notifyParticipantsAdded(eventId: string, newParticipantIds
         { eventTitle: event.title, participantCount: newParticipants.length }
       );
     }
-
-    console.log(`✅ Notified ${newParticipants.length} new participants about event: ${eventId}`);
   } catch (error) {
-    console.error('Error notifying participants added:', error);
+    console.error('❌ Error notifying participants added:', error);
   }
 }
-

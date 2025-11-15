@@ -1,7 +1,6 @@
-// pages/Auth/Login.tsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
+import { easeInOut, motion } from "framer-motion";
 import {
   Eye,
   EyeOff,
@@ -15,14 +14,40 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { login, clearError } from "../../store/slices/authSlice";
 import { loginSchema, type LoginFormData } from "../../utils/validation";
-// import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
+import { useToast } from "../../components/ui/use-toast";
 import LoadingSpinner from "../../components/ui/Spinner";
+import { getErrorMessage } from "../../utils/errorHandler";
+
+const containerVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.3,
+      ease: easeInOut,
+    },
+  },
+};
+
+const formVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      delay: 0.2,
+    },
+  },
+};
 
 const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const { loading, error, isAuthenticated } = useAppSelector(
     (state) => state.auth
   );
@@ -65,34 +90,18 @@ const Login: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       await dispatch(login(data)).unwrap();
-    } catch (err) {
-      // Error handled by Redux
-      console.log("eeror submting form in login", err);
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
+        variant: "success",
+      });
+    } catch (err: unknown) {
+      toast({
+        title: "Login failed",
+        description: getErrorMessage(err),
+        variant: "destructive",
+      });
     }
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const formVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.4,
-        delay: 0.2,
-      },
-    },
   };
 
   return (
@@ -258,7 +267,7 @@ const Login: React.FC = () => {
             >
               {loading ? (
                 <>
-                  <LoadingSpinner className="mr-2" />
+                  <LoadingSpinner />
                   Signing in...
                 </>
               ) : (

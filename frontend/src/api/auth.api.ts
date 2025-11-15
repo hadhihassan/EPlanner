@@ -1,7 +1,9 @@
 import api from './axios';
 import type { LoginResponse, RegisterResponse, User } from '../types/auth.types';
 
-export const loginAPI = (payload: { email: string; password: string }): Promise<LoginResponse> =>
+export const loginAPI = (
+  payload: { email: string; password: string }
+): Promise<LoginResponse> =>
   api.post('/auth/login', payload).then((r) => r.data);
 
 export const registerAPI = (payload: {
@@ -15,5 +17,7 @@ export const registerAPI = (payload: {
 export const meAPI = (): Promise<{ user: User }> =>
   api.get('/auth/me').then((r) => r.data);
 
-export const refreshTokenAPI = (refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> =>
+export const refreshTokenAPI = (
+  refreshToken: string
+): Promise<{ accessToken: string; refreshToken: string }> =>
   api.post('/auth/refresh', { refreshToken }).then((r) => r.data);

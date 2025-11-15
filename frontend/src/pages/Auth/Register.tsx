@@ -1,7 +1,6 @@
-// pages/Auth/Register.tsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { easeInOut, motion } from "framer-motion";
 import {
   Eye,
   EyeOff,
@@ -21,14 +20,28 @@ import {
   clearError,
 } from "../../store/slices/authSlice";
 import { registerSchema, type RegisterFormData } from "../../utils/validation";
-// import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
+import { useToast } from "../../components/ui/use-toast";
 import LoadingSpinner from "../../components/ui/Spinner";
+import { getErrorMessage } from "../../utils/errorHandler";
+
+const containerVariants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.6,
+      ease: easeInOut,
+    },
+  },
+};
 
 const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { loading, error, isAuthenticated } = useAppSelector(
     (state) => state.auth
   );
@@ -72,28 +85,21 @@ const Register: React.FC = () => {
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
-      console.log(data);
-      
       await dispatch(registerUser(data)).unwrap();
-    } catch (err) {
-      // Error handled by Redux
-      console.log("Error from register onsubmit fn()", err);
+      toast({
+        title: "Account created!",
+        description: `Welcome, ${data.name}! Your account has been created successfully.`,
+      });
+    } catch (err: unknown) {
+      toast({
+        title: "Registration failed",
+        description: getErrorMessage(err),
+        variant: "destructive",
+      });
     }
   };
 
   const selectedRole = watch("role");
-
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-blue-50 py-12 px-4 sm:px-6 lg:px-10 w-full">

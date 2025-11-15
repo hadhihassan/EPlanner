@@ -13,7 +13,6 @@ export const sendEmail = async ({
   html
 }: { to: string; subject: string; text?: string; html?: string }) => {
   if (!env.EMAIL.HOST) {
-    console.log(`[DEV] Email -> ${to}: ${subject}`);
     return;
   }
 

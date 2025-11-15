@@ -1,5 +1,4 @@
 import { MongoNotificationRepository } from '../adapters/repositories/mongoNotification.repo.js';
-import { Notification } from '../entity/notification.entity.js';
 
 export class NotificationUseCase {
   constructor(private readonly notificationRepo: MongoNotificationRepository) { }

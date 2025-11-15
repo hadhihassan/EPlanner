@@ -1,18 +1,9 @@
-// hooks/useSocket.ts
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { useToast } from '../components/ui/use-toast';
 
-interface SocketOptions {
-  autoConnect?: boolean;
-  reconnectionAttempts?: number;
-  timeout?: number;
-}
-
-export default function useSocket(token?: string, options: SocketOptions = {}) {
+export default function useSocket(token?: string) {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     // Only create socket if we have a token and don't already have a socket
@@ -27,8 +18,8 @@ export default function useSocket(token?: string, options: SocketOptions = {}) {
         token 
       },
       autoConnect: true,
-      reconnectionAttempts: 3, // Reduced from 5
-      timeout: 5000,
+      reconnectionAttempts: 5,
+      timeout: 9000,
       transports: ['websocket', 'polling']
     });
 
@@ -49,7 +40,6 @@ export default function useSocket(token?: string, options: SocketOptions = {}) {
 
     socketRef.current = socket;
 
-    // Cleanup on unmount
     return () => {
       console.log('🧹 Cleaning up socket');
       if (socketRef.current) {
@@ -58,7 +48,7 @@ export default function useSocket(token?: string, options: SocketOptions = {}) {
       }
       setIsConnected(false);
     };
-  }, [token]); // Only depend on token
+  }, [token]);
 
   const emit = (event: string, data: any) => {
     if (socketRef.current?.connected) {

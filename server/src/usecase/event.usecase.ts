@@ -17,7 +17,9 @@ export class EventUseCase {
         event = await this.eventRepo.update(event.id!, { jobId });
       }
     }
-    notifyEventCreated(event.id!, user.id)
+    notifyEventCreated(event.id!, user.id).catch(error => {
+      console.error('Failed to send creation notifications:', error);
+    });
     return event;
   }
 
@@ -130,7 +132,9 @@ export class EventUseCase {
 
     await this.eventRepo.addUsers(id, newParticipants);
 
-    notifyParticipantsAdded(id, newParticipants);
+    notifyParticipantsAdded(id, newParticipants).catch(error => {
+      console.error('Failed to send participant notifications:', error);
+    });
 
     return true;
   }

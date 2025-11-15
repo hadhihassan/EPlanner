@@ -16,8 +16,8 @@ mongoose
     console.log('Mongo connected');
     
     // Schedule daily digest job
-    // await scheduleDailyDigest();
-    // console.log('📅 Daily digest job scheduled');
+    await scheduleDailyDigest();
+    console.log('📅 Daily digest job scheduled');
     
     server.listen(env.PORT, () => console.log(`Server running ${env.PORT}`));
   }).catch(err => {

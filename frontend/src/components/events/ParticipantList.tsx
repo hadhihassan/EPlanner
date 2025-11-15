@@ -1,29 +1,19 @@
 import { motion } from "framer-motion";
-import { Users, Mail, Crown, Circle, MessageCircle } from "lucide-react";
+import { Users, Mail, Crown, Circle } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import type { User } from "../../types/auth.types";
 import AddUsers from "./addUsers";
 import { useEffect, useState } from "react";
 import { useAppSelector } from "../../store/hooks";
-import useSocket from "../../hooks/useSocket";
 import { getUsersByIds } from "../../api/user.api";
+import type { OnlineUser } from "../../types/user.types";
+import { useGlobalSocket } from "../../context/SocketContext";
 
 interface ParticipantListProps {
   participants: string[];
   organizer: string;
   onParticipantsUpdate?: (users: User[]) => void;
   eventId: string;
-}
-
-interface OnlineUser {
-  userId: string;
-  userData: {
-    id: string;
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-  lastSeen: string;
 }
 
 export default function ParticipantList({
@@ -33,10 +23,9 @@ export default function ParticipantList({
   eventId,
 }: ParticipantListProps) {
   const [globalOnlineUsers, setGlobalOnlineUsers] = useState<OnlineUser[]>([]);
-  const [eventOnlineUsers, setEventOnlineUsers] = useState<OnlineUser[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const { token, user: currentUser } = useAppSelector((s) => s.auth);
-  const { socket } = useSocket(token || undefined);
+  const { user: currentUser } = useAppSelector((s) => s.auth);
+  const { socket } = useGlobalSocket();
 
   const getParticipantName = (participant: User): string => {
     return participant.name || participant.email || "Unknown User";
@@ -68,87 +57,41 @@ export default function ParticipantList({
     onParticipantsUpdate?.(users);
   };
 
-  // Check if a participant is globally online (anywhere in app)
-  const isUserGloballyOnline = (participant: User): boolean => {
+  // Check if participant is online (GLOBALLY - anywhere in the app)
+  const isUserOnline = (participant: User): boolean => {
     const participantId = getParticipantId(participant);
     return globalOnlineUsers.some(
       (onlineUser) => onlineUser.userId === participantId
     );
   };
 
-  // Check if a participant is in this specific event
-  const isUserInThisEvent = (participant: User): boolean => {
-    const participantId = getParticipantId(participant);
-    return eventOnlineUsers.some(
-      (onlineUser) => onlineUser.userId === participantId
-    );
-  };
-
-  // Get status badge color and text
-  const getUserStatus = (participant: User) => {
-    const isGlobalOnline = isUserGloballyOnline(participant);
-    const isInEvent = isUserInThisEvent(participant);
-
-    if (isInEvent) {
-      return {
-        color: "bg-green-500",
-        text: "In this event",
-        icon: MessageCircle
-      };
-    } else if (isGlobalOnline) {
-      return {
-        color: "bg-blue-500",
-        text: "Online",
-        icon: Circle
-      };
-    } else {
-      return {
-        color: "bg-gray-400",
-        text: "Offline",
-        icon: Circle
-      };
-    }
-  };
-
   useEffect(() => {
     if (!socket) return;
 
-    const handleGlobalOnlineUsers = (users: OnlineUser[]) => {
-      console.log('🌐 Global online users:', users);
-      setGlobalOnlineUsers(users);
-    };
+    const handleGlobal = (users: OnlineUser[]) => setGlobalOnlineUsers(users);
+    const handleEvent = (users: OnlineUser[]) => setGlobalOnlineUsers(users);
 
-    const handleEventOnlineUsers = (users: OnlineUser[]) => {
-      console.log('🎯 Event online users:', users);
-      setEventOnlineUsers(users);
-    };
+    socket.on("globalOnlineUsers", handleGlobal);
+    socket.on("eventOnlineUsers", handleEvent);
 
-    // Set up listeners for both types
-    socket.on("globalOnlineUsers", handleGlobalOnlineUsers);
-    socket.on("eventOnlineUsers", handleEventOnlineUsers);
-
-    // Request initial data
     if (socket.connected) {
       socket.emit("joinEvent", { eventId });
     }
-
-    return () => {
-      socket.off("globalOnlineUsers", handleGlobalOnlineUsers);
-      socket.off("eventOnlineUsers", handleEventOnlineUsers);
-    };
   }, [socket, eventId]);
 
   const fetchParticipants = async () => {
     try {
-      const allUserIds = [...participants, organizer].filter(id => id);
+      const allUserIds = [...participants, organizer].filter((id) => id);
       if (allUserIds.length === 0) return;
-      
+
       const usersData = await getUsersByIds(allUserIds);
       setUsers(usersData || []);
     } catch (error) {
-      console.error('Error fetching participants:', error);
+      console.error("Error fetching participants:", error);
     }
   };
+
+  const onlineParticipantsCount = users.filter((p) => isUserOnline(p)).length;
 
   useEffect(() => {
     fetchParticipants();
@@ -173,35 +116,36 @@ export default function ParticipantList({
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>In event ({eventOnlineUsers.length})</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>Online ({globalOnlineUsers.length})</span>
+                <span>Online ({onlineParticipantsCount})</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                <span>Offline</span>
+                <span>Offline ({users.length - onlineParticipantsCount})</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>Total ({users.length})</span>
               </div>
             </div>
           </div>
         </div>
-
-        <AddUsers
-          onUsersAdd={handleUsersAdd}
-          maxUsers={50}
-          placeholder="Add team members..."
-          compact={true}
-          eventId={eventId}
-        />
+        {(currentUser?.role === "admin" ||
+          organizer === (currentUser?._id || currentUser?.id)) && (
+          <AddUsers
+            onUsersAdd={handleUsersAdd}
+            maxUsers={50}
+            placeholder="Add team members..."
+            compact={true}
+            eventId={eventId}
+          />
+        )}
       </div>
 
       {/* Participants List */}
       <div className="space-y-3 max-h-80 overflow-y-auto">
         {users.map((participant, index) => {
-          const status = getUserStatus(participant);
-          const StatusIcon = status.icon;
-          
+          const isOnline = isUserOnline(participant);
+
           return (
             <motion.div
               key={getParticipantId(participant) || index}
@@ -215,13 +159,15 @@ export default function ParticipantList({
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
                   {getInitials(getParticipantName(participant))}
                 </div>
-                
+
                 {/* Status Indicator */}
                 <div className="absolute -bottom-1 -right-1">
                   <div className="relative">
-                    <StatusIcon className={`w-3 h-3 ${status.color} text-white rounded-full`} />
-                    {status.color === "bg-green-500" && (
-                      <div className="absolute inset-0 bg-green-500 rounded-full animate-ping"></div>
+                    <div
+                      className={`w-3 h-3 ${isOnline ? "bg-green-500" : "bg-gray-400"} rounded-full border-2 border-white`}
+                    />
+                    {isOnline && (
+                      <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75"></div>
                     )}
                   </div>
                 </div>
@@ -230,7 +176,8 @@ export default function ParticipantList({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-900 truncate">
-                    {getParticipantId(participant) === currentUser?.id
+                    {getParticipantId(participant) ===
+                    (currentUser?.id || currentUser?._id)
                       ? "You"
                       : getParticipantName(participant)}
                   </span>
@@ -248,15 +195,18 @@ export default function ParticipantList({
                       </span>
                     </div>
                   )}
-                  
+
                   {getParticipantEmail(participant) && <span>•</span>}
-                  
-                  <div className={`flex items-center gap-1 ${
-                    status.color === "bg-green-500" ? "text-green-600" :
-                    status.color === "bg-blue-500" ? "text-blue-600" : "text-gray-400"
-                  }`}>
-                    <StatusIcon className={`w-2 h-2 ${status.color}`} />
-                    <span>{status.text}</span>
+
+                  <div
+                    className={`flex items-center gap-1 ${
+                      isOnline ? "text-green-600" : "text-gray-400"
+                    }`}
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${isOnline ? "bg-green-500" : "bg-gray-400"}`}
+                    />
+                    <span>{isOnline ? "Online" : "Offline"}</span>
                   </div>
                 </div>
               </div>
@@ -297,14 +247,7 @@ export default function ParticipantList({
       <div className="mt-4 pt-4 border-t border-gray-200">
         <div className="flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <MessageCircle className="w-3 h-3 text-green-500" />
-              <span>In this event ({eventOnlineUsers.length})</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Circle className="w-3 h-3 text-blue-500" />
-              <span>Online anywhere ({globalOnlineUsers.length})</span>
-            </div>
+            <span>Online participants: {onlineParticipantsCount}</span>
           </div>
           {socket && (
             <div

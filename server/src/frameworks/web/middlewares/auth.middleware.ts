@@ -17,7 +17,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       payload = jwt.verify(token, env.JWT_ACCESS_SECRET);
     } catch (err: any) {
       if (err instanceof jwt.TokenExpiredError) {
-        // ✅ Tell frontend token expired (will trigger refresh logic)
         return res.status(401).json({ message: 'TokenExpiredError' });
       }
       return res.status(401).json({ message: 'Invalid or malformed token' });
@@ -40,7 +39,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
     next();
   } catch (err) {
-    console.error('Auth Middleware Error:', err);
     return res.status(500).json({ message: 'Internal authentication error' });
   }
 };

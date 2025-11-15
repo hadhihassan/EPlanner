@@ -2,7 +2,6 @@
 import { 
   format, 
   formatDistance, 
-  formatRelative, 
   isToday, 
   isYesterday,
   isThisYear 
@@ -11,8 +10,7 @@ import {
 export class DateFormatter {
   // For chat messages - shows time only for today, date for older
   static formatMessageTimestamp(date: Date | string): string {
-    const messageDate = new Date(date);
-    const now = new Date();
+    const messageDate = new Date(date)
 
     if (isToday(messageDate)) {
       return format(messageDate, 'h:mm a'); // 2:30 PM

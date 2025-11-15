@@ -1,12 +1,14 @@
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
 import { X, Calendar, MapPin, Clock, Paperclip, Sparkles } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import LoadingSpinner from "../ui/Spinner";
 import { createEvent } from "../../store/slices/eventsSlice";
+import { useToast } from "../ui/use-toast";
+import { eventSchema } from "../../validations/eventValidations";
+import { categories } from "./constants";
 
 interface CreateEventModalProps {
   isOpen: boolean;
@@ -23,50 +25,27 @@ interface CreateEventFormData {
 }
 
 interface Attachment {
-  file: File; // Store the actual File object
+  file: File;
   filename: string;
-  url: string; // For preview purposes
+  url: string;
 }
 
-const eventSchema = yup.object({
-  title: yup
-    .string()
-    .required("Event title is required")
-    .min(5, "Title must be at least 5 characters")
-    .max(100, "Title must be less than 100 characters"),
-  description: yup
-    .string()
-    .required("Event description is required")
-    .min(20, "Description must be at least 20 characters")
-    .max(1000, "Description must be less than 1000 characters"),
-  category: yup.string().required("Please select a category"),
-  startAt: yup.string().required("Start date and time are required"),
-  endAt: yup
-    .string()
-    .required("End date and time are required")
-    .test(
-      "is-after-start",
-      "End time must be after start time",
-      function (value) {
-        const { startAt } = this.parent;
-        return !startAt || !value || new Date(value) > new Date(startAt);
-      }
-    ),
-  location: yup.string().required("Location is required"),
-});
+const modalVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.9, y: 20 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: "spring", damping: 30, stiffness: 400 },
+  },
+  exit: { opacity: 0, scale: 0.9, y: 20, transition: { duration: 0.2 } },
+};
 
-const categories = [
-  "Business & Professional",
-  "Technology",
-  "Health & Wellness",
-  "Arts & Culture",
-  "Education",
-  "Social",
-  "Sports & Fitness",
-  "Entertainment",
-  "Food & Drink",
-  "Other",
-];
+const overlayVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+  exit: { opacity: 0 },
+};
 
 export default function CreateEventModal({
   isOpen,
@@ -74,8 +53,9 @@ export default function CreateEventModal({
 }: CreateEventModalProps) {
   const dispatch = useAppDispatch();
   const { loading } = useAppSelector((s) => s.events);
-  const [submiting, setSumitnig] = useState<boolean>(false)
+  const [submiting, setSumitnig] = useState<boolean>(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const { toast } = useToast();
 
   const form = useForm<CreateEventFormData>({
     resolver: yupResolver(eventSchema),
@@ -87,9 +67,9 @@ export default function CreateEventModal({
     if (!files) return;
 
     const newAttachments: Attachment[] = Array.from(files).map((file) => ({
-      file, 
+      file,
       filename: file.name,
-      url: URL.createObjectURL(file), 
+      url: URL.createObjectURL(file),
     }));
 
     setAttachments((prev) => [...prev, ...newAttachments]);
@@ -102,7 +82,7 @@ export default function CreateEventModal({
   };
 
   const onSubmit = async (data: CreateEventFormData) => {
-    setSumitnig(true)
+    setSumitnig(true);
     const formData = new FormData();
 
     formData.append("title", data.title);
@@ -117,20 +97,38 @@ export default function CreateEventModal({
     });
 
     try {
-      const resultAction = await dispatch(createEvent(formData as unknown as Event));
+      const resultAction = await dispatch(createEvent(formData));
       if (createEvent.fulfilled.match(resultAction)) {
         attachments.forEach((attachment) => {
           URL.revokeObjectURL(attachment.url);
         });
 
+        toast({
+          title: "Event created successfully!",
+          description: `"${data.title}" has been created and notifications sent to participants.`,
+          variant: "success",
+        });
+
         handleClose();
       } else {
-        throw new Error(resultAction.payload as string);
+        const errorMessage =
+          (resultAction.payload as string) || "Failed to create event";
+        toast({
+          title: "Failed to create event",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        throw new Error(errorMessage);
       }
-    } catch (err) {
-      console.error("❌ Create event failed:", err);
-    }finally{
-      setSumitnig(false)
+    } catch (err: unknown) {
+      toast({
+        title: "Failed to create event",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      console.log(err);
+    } finally {
+      setSumitnig(false);
     }
   };
 
@@ -145,23 +143,6 @@ export default function CreateEventModal({
     onClose();
   };
 
-  const modalVariants = {
-    hidden: { opacity: 0, scale: 0.9, y: 20 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: { type: "spring", damping: 30, stiffness: 400 },
-    },
-    exit: { opacity: 0, scale: 0.9, y: 20, transition: { duration: 0.2 } },
-  };
-
-  const overlayVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-    exit: { opacity: 0 },
-  };
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -170,7 +151,7 @@ export default function CreateEventModal({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          className="fixed inset-0  bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
           onClick={handleClose}
         >
           <motion.div
@@ -178,7 +159,7 @@ export default function CreateEventModal({
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-100"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

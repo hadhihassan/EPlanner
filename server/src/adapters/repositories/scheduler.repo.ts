@@ -6,7 +6,7 @@ import JobMetaModel from '../../frameworks/database/models/jobMeta.model.js';
  */
 export const scheduleEventReminder = async (eventId: string, startAt: Date) => {
   const now = new Date();
-  const reminderTime = new Date(startAt.getTime() - 60 * 60 * 1000); //1 one house before
+  const reminderTime = new Date(startAt.getTime() - 60 * 60 * 1000);
 
   if (reminderTime <= now) {
     return null;
@@ -14,15 +14,14 @@ export const scheduleEventReminder = async (eventId: string, startAt: Date) => {
   const delay = reminderTime.getTime() - now.getTime();
 
   try {
-    // Remove existing job if any
+
     const existingJob = await JobMetaModel.findOne({ event: eventId, type: 'eventReminder' });
     if (existingJob) {
       await QueueAdapter.remove(existingJob.jobId);
       await JobMetaModel.deleteOne({ _id: existingJob._id });
     }
 
-    // Add job to BullMQ queue
-    const job = await QueueAdapter.add('reminders', 'eventReminder', { eventId }, { 
+    const job = await QueueAdapter.add('reminders', 'eventReminder', { eventId }, {
       delay,
       jobId: `eventReminder:${eventId}:${reminderTime.getTime()}`
     });
@@ -46,25 +45,41 @@ export const scheduleEventReminder = async (eventId: string, startAt: Date) => {
  */
 export const scheduleDailyDigest = async () => {
   try {
-    const existing = await JobMetaModel.findOne({ type: 'dailyDigest' });
-    if (existing) {
-      return existing.jobId;
+    console.log('🔄 Checking daily digest schedule...');
+
+    const dailyDigestQueue = QueueAdapter.dailyDigestQueue;
+    const repeatableJobs = await dailyDigestQueue.getRepeatableJobs();
+
+    console.log(`📋 Found ${repeatableJobs.length} repeatable jobs`);
+
+    for (const job of repeatableJobs) {
+      try {
+        await dailyDigestQueue.removeRepeatableByKey(job.key);
+        console.log(`Removed repeatable job: ${job.key} (${job.pattern})`);
+      } catch (error) {
+        console.log(`ℹ️ Could not remove ${job.key}:`, error);
+      }
     }
 
-    // Schedule recurring job - EVERY DAY AT 8 AM (PRODUCTION)
+    // 🔥 CRITICAL FIX: Remove all job metadata from database
+    await JobMetaModel.deleteMany({ type: 'dailyDigest' });
+    console.log('🧹 Cleared all daily digest job metadata');
+
+    // 🔥 CRITICAL FIX: Schedule ONLY ONE job with proper configuration
     const job = await QueueAdapter.add(
       'dailyDigest',
       'dailyDigest',
       {},
       {
         repeat: {
-          pattern: '0 8 * * *', // Every day at 8 AM (PRODUCTION)
+          pattern: '0 8 * * *', // ✅ 8 AM daily
           tz: 'UTC'
         },
         jobId: 'dailyDigest:recurring'
       }
     );
 
+    // Save ONLY ONE job metadata
     await JobMetaModel.create({
       event: null,
       queueName: 'dailyDigest',
@@ -72,9 +87,12 @@ export const scheduleDailyDigest = async () => {
       type: 'dailyDigest'
     });
 
+    console.log('✅ DAILY DIGEST SCHEDULED: Will run ONCE daily at 8 AM UTC');
+    console.log('⏰ Next execution: Tomorrow at 08:00 UTC');
+
     return job.id || 'dailyDigest:recurring';
   } catch (error) {
-    console.error('Error scheduling daily digest:', error);
+    console.error('❌ Error scheduling daily digest:', error);
     return null;
   }
 };
@@ -89,7 +107,7 @@ export const removeAllEventJobs = async (eventId: string) => {
   try {
     // Find all job metadata for this event
     const jobs = await JobMetaModel.find({ event: eventId });
-    
+
     if (jobs.length === 0) {
       console.log(`ℹ️ No scheduled jobs found for event ${eventId}`);
       return;
@@ -109,7 +127,7 @@ export const removeAllEventJobs = async (eventId: string) => {
 
     // Remove job metadata from database
     await JobMetaModel.deleteMany({ event: eventId });
-    
+
     console.log(`✅ Removed ${jobs.length} scheduled job(s) for event ${eventId}`);
   } catch (error) {
     console.error(`❌ Error removing jobs for event ${eventId}:`, error);

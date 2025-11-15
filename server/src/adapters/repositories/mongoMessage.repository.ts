@@ -5,7 +5,7 @@ export class MongoMessageRepository {
   async create(msg: Message): Promise<Message> {
     let newMessage = await MessageModel.create(msg);
     let doc = await this.findById(newMessage?._id?.toString());
-    console.log('doc', doc)
+
     return this.map(doc);
   }
 
