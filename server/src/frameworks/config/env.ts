@@ -9,7 +9,7 @@ const schema = z.object({
   JWT_SECRET: z.string().min(10),
   JWT_EXPIRES_IN: z.string().default('7d'),
   REDIS_HOST: z.string().default('127.0.0.1'),
-  REDIS_URL: z.string().optional(),
+  REDIS_URL: z.string().default(""),
   REDIS_PORT: z.string().default('6379'),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),

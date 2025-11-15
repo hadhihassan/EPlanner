@@ -7,20 +7,27 @@ import { sendEmail } from '../../adapters/services/mailer.service.js';
 import { getIO } from '../sockets/index.js';
 import mongoose from 'mongoose';
 
-let connection;
 
-if (env.REDIS_URL) {
+const hasRedisUrl =
+  env.REDIS_URL && env.REDIS_URL.trim() !== "" && !env.REDIS_URL.startsWith("undefined");
+
+export let connection: Redis;
+
+if (hasRedisUrl) {
+  // Render Internal KV (NO TLS, NO PASSWORD)
   connection = new Redis(env.REDIS_URL, {
     maxRetriesPerRequest: null,
-    tls: env.REDIS_URL.startsWith("rediss://") ? {} : undefined,
   });
-  console.log("🔗 Connected to Render Redis via REDIS_URL");
+
+  console.log("🔗 Connected to Render Redis at", env.REDIS_URL);
 } else {
+  // Local Docker Redis
   connection = new Redis({
     host: env.REDIS_HOST || "127.0.0.1",
     port: Number(env.REDIS_PORT) || 6379,
     maxRetriesPerRequest: null,
   });
+
   console.log(`🔗 Connected to Local Redis at ${env.REDIS_HOST}:${env.REDIS_PORT}`);
 }
 

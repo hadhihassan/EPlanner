@@ -1,23 +1,5 @@
 import { Queue } from 'bullmq';
-import { Redis } from 'ioredis';
-import { env } from '../config/env.js';
-
-let connection;
-
-if (env.REDIS_URL) {
-  connection = new Redis(env.REDIS_URL, {
-    maxRetriesPerRequest: null,
-    tls: env.REDIS_URL.startsWith("rediss://") ? {} : undefined,
-  });
-  console.log("🔗 Connected to Render Redis via REDIS_URL");
-} else {
-  connection = new Redis({
-    host: env.REDIS_HOST || "127.0.0.1",
-    port: Number(env.REDIS_PORT) || 6379,
-    maxRetriesPerRequest: null,
-  });
-  console.log(`🔗 Connected to Local Redis at ${env.REDIS_HOST}:${env.REDIS_PORT}`);
-}
+import { connection } from './worker.js'
 
 const remindersQueue = new Queue('reminders', { connection });
 const dailyDigestQueue = new Queue('dailyDigest', { connection });
