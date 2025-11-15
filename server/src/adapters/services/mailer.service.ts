@@ -3,6 +3,8 @@ import { env } from '../../frameworks/config/env.js';
 
 const transporter = nodemailer.createTransport({
   host: env.EMAIL.HOST,
+  port: 465,
+  secure: true,
   auth: { user: env.EMAIL.USER, pass: env.EMAIL.PASS }
 });
 
