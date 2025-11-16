@@ -10,7 +10,7 @@ The system uses 2 live layers:
 
 ---
 
-# ⚡ Connection & Authentication
+# Connection & Authentication
 
 The client connects using:
 
@@ -35,9 +35,9 @@ socket.userData = { id, name, email, role }
 
 ---
 
-# 🌍 Global Events
+# Global Events
 
-## **1. globalOnlineUsers**
+### *1. globalOnlineUsers*
 
 **Direction:** Server → All clients
 **Purpose:** Shows all online users in EPlanner.
@@ -67,9 +67,9 @@ socket.userData = { id, name, email, role }
 
 ---
 
-# 📨 Notification Events
+# Notification Events
 
-## **2. notification**
+### *2. notification*
 
 **Direction:** Server → Single user**
 
@@ -95,9 +95,9 @@ user:{userId}
 
 ---
 
-# 🏢 Notification Room Events
+# Notification Room Events
 
-### **joinNotifications**
+### *3. joinNotifications*
 
 Client tells backend to subscribe:
 
@@ -105,7 +105,7 @@ Client tells backend to subscribe:
 socket.emit("joinNotifications");
 ```
 
-### **leaveNotifications**
+### *4. leaveNotifications*
 
 Unsubscribes from the room.
 
@@ -146,9 +146,9 @@ User will be removed from event online map.
 
 ---
 
-# 💬 Chat Events
+#  Chat Events
 
-## **chatHistory**
+### *4. chatHistory*
 
 **Direction:** Server → Single client**
 
@@ -169,7 +169,7 @@ Sent only once when user joins a room.
 
 ---
 
-## **eventChatMessage**
+# eventChatMessage
 
 **Direction:** Client → Server**
 
@@ -196,35 +196,6 @@ newChatMessage
   "text": "Welcome!",
   "createdAt": "2025-01-01T12:01:00",
   "user": { "name": "Hassan" }
-}
-```
-
----
-
-## **Typing Indicator**
-
-### Client → Server
-
-```ts
-socket.emit("typing", {
-  eventId,
-  isTyping: true
-});
-```
-
-### Server → Room
-
-```
-userTyping
-```
-
-Payload:
-
-```json
-{
-  "userId": "123",
-  "isTyping": true,
-  "userData": { "name": "Hadhi" }
 }
 ```
 ---

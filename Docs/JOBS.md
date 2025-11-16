@@ -3,11 +3,11 @@
 
 EPlanner uses **BullMQ** + **Redis** + **MongoDB job metadata** :
 
-### ✔ Event reminders (1 hour before event start)  
-### ✔ Daily digest email (8 AM UTC)  
-### ✔ In-app notifications  
-### ✔ Email sending via SendGrid  
-### ✔ Automatic job cleanup on event updates  
+### Event reminders (1 hour before event start)  
+### Daily digest email (8 AM UTC)  
+### In-app notifications  
+### Email sending via SendGrid  
+### Automatic job cleanup on event updates  
 
 This document explains queues, workers, scheduling strategy, job lifecycle, and metadata flow.
 
