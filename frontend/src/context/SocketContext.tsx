@@ -27,7 +27,7 @@ export function SocketProvider({ token, children }: SocketProviderProps) {
     }
 
     console.log('Initializing socket connection...');
-    const s = io(import.meta.env.VITE_WS_URL || 'http://localhost:4000', {
+    const s = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000', {
       transports: ["websocket", "polling"],
       auth: { 
         token,
