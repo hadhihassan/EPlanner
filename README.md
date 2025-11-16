@@ -154,25 +154,6 @@ VITE_SOCKET_URL=http://localhost:4000
 ```
 npm run dev
 ```
-
----
-
-# 📡 API Documentation
-
-Full API docs are available in:
-
-👉 [`docs/API.md`](docs/API.md)
-
-Includes:
-
-* Auth API
-* Event API
-* Participant API
-* Message API
-* Notification API
-* File upload API
-  Each with examples.
-
 ---
 
 # ⚡ Socket.IO Events

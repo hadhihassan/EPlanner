@@ -45,34 +45,29 @@ export const scheduleEventReminder = async (eventId: string, startAt: Date) => {
  */
 export const scheduleDailyDigest = async () => {
   try {
-    console.log('🔄 Checking daily digest schedule...');
 
     const dailyDigestQueue = QueueAdapter.dailyDigestQueue;
     const repeatableJobs = await dailyDigestQueue.getRepeatableJobs();
 
-    console.log(`📋 Found ${repeatableJobs.length} repeatable jobs`);
-
     for (const job of repeatableJobs) {
       try {
         await dailyDigestQueue.removeRepeatableByKey(job.key);
-        console.log(`Removed repeatable job: ${job.key} (${job.pattern})`);
       } catch (error) {
-        console.log(`ℹ️ Could not remove ${job.key}:`, error);
+        console.log(`Could not remove ${job.key}:`, error);
       }
     }
 
-    // 🔥 CRITICAL FIX: Remove all job metadata from database
+    // CRITICAL FIX: Remove all job metadata from database
     await JobMetaModel.deleteMany({ type: 'dailyDigest' });
-    console.log('🧹 Cleared all daily digest job metadata');
 
-    // 🔥 CRITICAL FIX: Schedule ONLY ONE job with proper configuration
+    // CRITICAL FIX: Schedule ONLY ONE job with proper configuration
     const job = await QueueAdapter.add(
       'dailyDigest',
       'dailyDigest',
       {},
       {
         repeat: {
-          pattern: '0 8 * * *', // ✅ 8 AM daily
+          pattern: '0 8 * * *', // 8 AM daily
           tz: 'UTC'
         },
         jobId: 'dailyDigest:recurring'
@@ -87,12 +82,8 @@ export const scheduleDailyDigest = async () => {
       type: 'dailyDigest'
     });
 
-    console.log('✅ DAILY DIGEST SCHEDULED: Will run ONCE daily at 8 AM UTC');
-    console.log('⏰ Next execution: Tomorrow at 08:00 UTC');
-
     return job.id || 'dailyDigest:recurring';
   } catch (error) {
-    console.error('❌ Error scheduling daily digest:', error);
     return null;
   }
 };
@@ -109,7 +100,6 @@ export const removeAllEventJobs = async (eventId: string) => {
     const jobs = await JobMetaModel.find({ event: eventId });
 
     if (jobs.length === 0) {
-      console.log(`ℹ️ No scheduled jobs found for event ${eventId}`);
       return;
     }
 
@@ -117,9 +107,8 @@ export const removeAllEventJobs = async (eventId: string) => {
     const removalPromises = jobs.map(async (job) => {
       try {
         await QueueAdapter.remove(job.jobId);
-        console.log(`✅ Removed job ${job.jobId} from queue ${job.queueName}`);
       } catch (error: any) {
-        console.warn(`⚠️ Could not remove job ${job.jobId}:`, error?.message);
+        console.warn(`Could not remove job ${job.jobId}:`, error?.message);
       }
     });
 
@@ -128,9 +117,7 @@ export const removeAllEventJobs = async (eventId: string) => {
     // Remove job metadata from database
     await JobMetaModel.deleteMany({ event: eventId });
 
-    console.log(`✅ Removed ${jobs.length} scheduled job(s) for event ${eventId}`);
   } catch (error) {
-    console.error(`❌ Error removing jobs for event ${eventId}:`, error);
     throw error; // Re-throw to handle in calling function
   }
 };
