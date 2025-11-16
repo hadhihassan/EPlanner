@@ -19,7 +19,8 @@ const schema = z.object({
   REFRESH_TOKEN_EXPIRY: z.string().default('15m'),
   EMAIL_USER: z.string().optional(),
   EMAIL_PASS: z.string().optional(),
-  FRONTEND_URL: z.string().default('http://localhost:3000')
+  FRONTEND_URL: z.string().default('http://localhost:3000'),
+  SENDGRID_API_KEY : z.string()
 });
 
 const parsed = schema.safeParse(process.env);
@@ -51,5 +52,6 @@ export const env = {
     USER: parsed.data.EMAIL_USER,
     PASS: parsed.data.EMAIL_PASS
   },
-  FRONTEND_URL: parsed.data.FRONTEND_URL
+  FRONTEND_URL: parsed.data.FRONTEND_URL,
+  SENDGRID_API_KEY: parsed.data.SENDGRID_API_KEY
 };

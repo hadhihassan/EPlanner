@@ -1,59 +1,50 @@
-import nodemailer from 'nodemailer';
-import { env } from '../../frameworks/config/env.js';
+import sgMail from "@sendgrid/mail";
+import { env } from "../../frameworks/config/env.js";
 
-const transporter = nodemailer.createTransport({
-  host: env.EMAIL.HOST,
-  port: 587,
-  secure: false,
-  auth: {
-    user: env.EMAIL.USER,
-    pass: env.EMAIL.PASS
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-
-// Verify connection on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.log('SMTP connection error:', error);
-  } else {
-    console.log('Gmail SMTP server is ready');
-  }
-});
+sgMail.setApiKey(env.SENDGRID_API_KEY);
 
 export const sendEmail = async ({
   to,
   subject,
   text,
   html
-}: { to: string; subject: string; text?: string; html?: string }) => {
-
-  if (!env.EMAIL.USER || !env.EMAIL.PASS) {
-    console.error('Gmail credentials missing');
-    return;
-  }
-
+}: {
+  to: string;
+  subject: string;
+  text?: string;
+  html?: string;
+}) => {
   try {
-    console.log("Attempting to send email via Gmail...");
 
-    const res = await transporter.sendMail({
-      from: `"EPlanner" <${env.EMAIL.USER}>`,
+    const content = [];
+
+    if (text) {
+      content.push({ type: "text/plain", value: text });
+    }
+
+    if (html) {
+      content.push({ type: "text/html", value: html });
+    }
+
+    if(content.length === 0){
+      throw new Error('Email must have either text or content or html content')
+    }
+
+    const msg = {
       to,
+      from: {
+        email: "no-reply@lilibrary.shop",
+        name: "EPlanner"
+      },
       subject,
-      text,
-      html
-    });
+      content,
+    } as any;
 
-    console.log("Email sent successfully:", res.messageId);
-    return res;
+    const response = await sgMail.send(msg);
+    return response;
 
-  } catch (error) {
-    console.error("Gmail sending failed:", error);
+  } catch (error: any) {
+    console.error("SendGrid Email failed:", error.response?.body || error);
     throw error;
   }
 };

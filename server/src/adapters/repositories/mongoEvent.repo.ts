@@ -33,19 +33,34 @@ export class MongoEventRepository {
     );
   }
 
-  async list(user: any, filters: { q?: string; status?: string; page?: number; limit?: number }): Promise<{ events: Event[], total: number, page: number, totalPages: number }> {
+  async list(
+    user: any,
+    filters: { q?: string; status?: string; page?: number; limit?: number }
+  ): Promise<{
+    events: Event[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  }> {
     const { q, status, page = 1, limit = 10 } = filters;
     const filter: any = {};
+    const now = new Date();
 
-    if (user.role !== 'admin') {
-      filter.$or = [
-        { organizer: user.id },
-        { participants: user.id },
-      ];
+    if (user.role !== "admin") {
+      filter.$or = [{ organizer: user.id }, { participants: user.id }];
     }
 
     if (status?.trim()) {
-      filter.status = status;
+      if (status === "upcoming") filter.startAt = { $gt: now };
+      else if (status === "ongoing") {
+        filter.startAt = { $lte: now };
+        filter.endAt = { $gte: now };
+      } else if (status === "completed") {
+        filter.endAt = { $lt: now };
+      }
     }
 
     if (q?.trim()) {
@@ -55,23 +70,26 @@ export class MongoEventRepository {
     const skip = (page - 1) * limit;
 
     const total = await EventModel.countDocuments(filter);
+    const totalPages = Math.ceil(total / limit);
 
     const docs = await EventModel.find(filter)
       .sort({
-        ...(q?.trim() ? { score: { $meta: "textScore" } } : {}),
+        ...(q ? { score: { $meta: "textScore" } } : {}),
         startAt: 1
       })
       .skip(skip)
       .limit(limit)
-      .populate('organizer participants', 'name email role')
+      .populate("organizer participants", "name email role")
       .lean();
-    const totalPages = Math.ceil(total / limit);
 
     return {
       events: docs.map(this.map),
       total,
       page,
-      totalPages
+      limit,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1
     };
   }
 

@@ -64,7 +64,7 @@ const Sidebar = ({ collapsed, setCollapsed, isMobile = false }: Props) => {
           damping: 30,
           duration: 0.3 
         }}
-        className="bg-white/95 backdrop-blur-xl border-r border-gray-200/60 fixed top-0 left-0 h-full z-50 lg:z-30"
+        className="bg-white/95 backdrp-blur-xl border-r border-gray-200/60 fixed top-0 left-0 h-full z-50 lg:z-30"
       >
         {/* Header */}
         <div className="p-6 flex items-center justify-between border-b border-gray-200/60 bg-gradient-to-r from-white to-gray-50/80">

@@ -79,9 +79,18 @@ export default function ParticipantList({
     }
   }, [socket, eventId]);
 
-  const fetchParticipants = async () => {
+  const fetchParticipants = async (newUserParti?: string[]) => {
     try {
-      const allUserIds = [...participants, organizer].filter((id) => id);
+      const baseIds = [...participants, organizer].filter(Boolean) as string[];
+
+      const combined = new Set<string>(baseIds);
+      if (newUserParti && newUserParti.length > 0) {
+        newUserParti.forEach((id) => {
+          if (id) combined.add(id);
+        });
+      }
+
+      const allUserIds = Array.from(combined);
       if (allUserIds.length === 0) return;
 
       const usersData = await getUsersByIds(allUserIds);
@@ -133,6 +142,7 @@ export default function ParticipantList({
           organizer === (currentUser?._id || currentUser?.id)) && (
           <AddUsers
             onUsersAdd={handleUsersAdd}
+            fetchParticipants={fetchParticipants}
             maxUsers={50}
             placeholder="Add team members..."
             compact={true}

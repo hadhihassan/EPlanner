@@ -4,8 +4,8 @@ import routes from "./routes";
 import Spinner from "./components/ui/Spinner";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { fetchMe } from "./store/slices/authSlice";
-import NotificationListener from "./components/notifications/NotificationListener";
 import { SocketProvider } from "./context/SocketContext";
+import NotificationListener from "./components/notifications/NotificationListener";
 
 export default function App() {
   const element = useRoutes(routes);

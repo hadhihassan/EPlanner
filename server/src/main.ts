@@ -14,11 +14,9 @@ mongoose
   .connect(env.MONGO_URI)
   .then(async () => {
     console.log('Mongo connected');
-    
     // Schedule daily digest job
     await scheduleDailyDigest();
     console.log('📅 Daily digest job scheduled');
-    
     server.listen(env.PORT, () => console.log(`Server running ${env.PORT}`));
   }).catch(err => {
     console.error('mongo error', err);

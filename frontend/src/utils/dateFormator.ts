@@ -1,14 +1,13 @@
-// utils/dateFormatter.ts
-import { 
-  format, 
-  formatDistance, 
-  isToday, 
+import {
+  format,
+  formatDistance,
+  isToday,
   isYesterday,
-  isThisYear 
+  isThisYear
 } from 'date-fns';
 
 export class DateFormatter {
-  // For chat messages - shows time only for today, date for older
+
   static formatMessageTimestamp(date: Date | string): string {
     const messageDate = new Date(date)
 
@@ -58,3 +57,18 @@ export class DateFormatter {
     return format(new Date(date), 'PPpp'); // Jan 15, 2024 at 2:30 PM
   }
 }
+
+export const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+export const formatTime = (dateString: string) => {
+  return new Date(dateString).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};

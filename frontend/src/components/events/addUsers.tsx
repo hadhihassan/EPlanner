@@ -16,6 +16,7 @@ interface AddUsersProps {
   placeholder?: string;
   eventId: string;
   compact?: boolean;
+  fetchParticipants: (newUsersId?:string[]) => void
 }
 
 export default function AddUsers({
@@ -24,6 +25,7 @@ export default function AddUsers({
   placeholder = "Search users...",
   compact = false,
   eventId,
+  fetchParticipants
 }: AddUsersProps) {
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
@@ -90,6 +92,7 @@ export default function AddUsers({
 
       setSelectedUsers([]);
       onUsersAdd([]);
+      fetchParticipants(participantsId)
     } catch (error: unknown) {
       let errorMessage = "An error occurred. Please try again.";
 

@@ -103,13 +103,13 @@ export default function EventHeader({ event, onRefresh }: EventHeaderProps) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, type: "spring" }}
-      className="bg-gradient-to-r from-white via-blue-50/30 to-purple-50/30 border-b border-gray-200/60 shadow-sm"
+      className="bg-gradient-to-r rounded-md from-white via-blue-50/30 to-purple-50/30 border-b border-gray-200/60 shadow-md"
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 py-4 sm:py-6">
         {/* Main Header */}
         <div className="flex items-start justify-between gap-4">
           {/* Back Button and Event Info */}
-          <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 variant="ghost"

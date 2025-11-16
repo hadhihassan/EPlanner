@@ -71,7 +71,7 @@ export default function EventDetails() {
       {/* Header */}
       <EventHeader event={event} onRefresh={fetchEventById} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6">
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-3 space-y-6">
@@ -143,7 +143,7 @@ export default function EventDetails() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-6 mt-0 md:mt-0 lg:mt-16">
             {/* Event Meta */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
