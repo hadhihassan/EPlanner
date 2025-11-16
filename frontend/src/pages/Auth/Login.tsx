@@ -107,7 +107,7 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <motion.div
-        className="max-w-xl w-full space-y-8"
+        className="max-w-2xl w-full space-y-8 lg:w-96"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
