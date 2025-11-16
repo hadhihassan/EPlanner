@@ -1,4 +1,4 @@
-# 📅 EPlanner — Event Management, Real-Time Chat & Notifications Platform
+# EPlanner — Event Management, Real-Time Chat & Notifications Platform
 
 EPlanner is a full-stack event management system built with a modern MERN architecture, real-time chat using Socket.IO, background job scheduling with BullMQ, and robust email notifications via SendGrid.
 
@@ -14,7 +14,7 @@ This project supports:
 
 ---
 
-## 🚀 Tech Stack
+## Tech Stack
 
 ### **Frontend**
 - React 19
@@ -45,30 +45,30 @@ This project supports:
 
 ---
 
-# ✨ Features
+# Features
 
-### 🎯 Event Management  
+### Event Management  
 - Create, update, delete events  
 - Upload attachments via Cloudinary  
 - Pagination + search + text index  
 - Status filters (upcoming/ongoing/completed)
 
-### 💬 Real-Time Chat  
+### Real-Time Chat  
 - Per-event chat rooms    
 - Chat history (Mongo stored)  
 - Per-event online users list  
 
-### 👥 Live Participant Presence  
+### Live Participant Presence  
 - Event-specific online users (for chat)  
 - Presence updates on connect/disconnect  
 
-### 🔔 Notifications System  
+### Notifications System  
 - In-app notifications (Socket.IO)  
 - Email notifications (SendGrid)  
 - Mark as read / mark all read  
 - Notification center (frontend)
 
-### 🕒 Background Jobs (BullMQ Worker)
+### Background Jobs (BullMQ Worker)
 - 1-hour-before event reminders  
 - Daily digest at 8 AM UTC  
 - Job metadata stored in Mongo  
@@ -76,7 +76,7 @@ This project supports:
 
 ---
 
-# 🛠 Local Development Setup
+# Local Development Setup
 
 ## 1. Clone the repository
 ```
@@ -133,7 +133,7 @@ npm run dev
 
 ---
 
-# 🎨 Frontend Setup (`/frontend`)
+# Frontend Setup (`/frontend`)
 
 ### Install dependencies
 
@@ -156,7 +156,7 @@ npm run dev
 ```
 ---
 
-# ⚡ Socket.IO Events
+# Socket.IO Events
 
 Detailed documentation available in:
 
@@ -175,7 +175,7 @@ Includes:
 
 ---
 
-# 🕒 Background Jobs (BullMQ)
+# Background Jobs (BullMQ)
 
 Full explanation available in:
 
@@ -193,7 +193,7 @@ Covers:
 
 ---
 
-# 🔐 Environment Variables Explained
+# Environment Variables Explained
 
 See:
 
@@ -201,7 +201,7 @@ See:
 
 ---
 
-# 📁 Folder Structure (Backend)
+# Folder Structure (Backend)
 
 ```
 server/
@@ -225,13 +225,13 @@ server/
 
 ---
 
-# 🎉 Screenshots (Optional)
+# Screenshots (Optional)
 
 *Add your screenshots here to make README more impressive.*
 
 ---
 
-# 🚀 Deployment Notes
+# Deployment Notes
 
 ### Backend (Render)
 
