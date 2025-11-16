@@ -214,64 +214,8 @@ server/
  │   └── worker.ts
  └── package.json
 ```
-
 ---
 
-## Screenshots
-
-Below are key screens from **EPlanner** showcasing authentication, event management, real-time chat, online presence, and notifications.
-
-### Login
-<p align="center">
-  <img src="<./server/publick/login.png>" alt="Login Page" width="750" />
-</p>
-
----
-
-### Register
-<p align="center">
-  <img src="<https://github.com/hadhihassan/EPlanner/blob/main/server/public/register.png?raw=true>" alt="Register Page" width="750" />
-</p>
-
----
-
-### Dashboard
-Shows upcoming, ongoing, completed events, filters, search & pagination.
-<p align="center">
-  <img src="<DASHBOARD_SCREENSHOT_URL>" alt="Dashboard" width="750" />
-</p>
-
----
-
-### Calendar View
-<p align="center">
-  <img src="<CALENDAR_SCREENSHOT_URL>" alt="Calendar View" width="750" />
-</p>
-
----
-
-#### Chat
-<p align="center">
-  <img src="<CHAT_SCREENSHOT_URL>" alt="Event Chat" width="750" />
-</p>
-
----
-
-#### Participants
-<p align="center">
-  <img src="<PARTICIPANTS_SCREENSHOT_URL>" alt="Event Participants" width="750" />
-</p>
-
----
-
-###  Notifications Panel
-Includes in-app notifications + unread count sync.
-<p align="center">
-  <img src="<NOTIFICATIONS_SCREENSHOT_URL>" alt="Notifications Panel" width="750" />
-</p>
-
-
----
  Deployment Notes
 
 ### Backend (Render)
