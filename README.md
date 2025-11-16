@@ -160,7 +160,7 @@ npm run dev
 
 Detailed documentation available in:
 
-👉 [`DOCS/SOCKET_EVENTS.md`](DOCS/SOCKET_EVENTS.md)
+👉 [`Docs/SOCKET_EVENTS.md`](Docs/SOCKET_EVENTS.md)
 
 Includes:
 
@@ -179,7 +179,7 @@ Includes:
 
 Full explanation available in:
 
-👉 [`DOCS/JOBS.md`](DOCS/JOBS.md)
+👉 [`Docs/JOBS.md`](Docs/JOBS.md)
 
 Covers:
 
