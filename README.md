@@ -76,6 +76,23 @@ This project supports:
 
 ---
 
+## Live Demo & Test Credentials
+
+### **Live URL**
+
+**Frontend:**
+[https://eplanner-f7ar.onrender.com/](https://eplanner-f7ar.onrender.com/)
+
+### **Demo Credentials**
+
+Use the following credentials to access the demo environment:
+
+```
+Email:    hadhi6880@gmail.com
+Password: Admin@123
+```
+---
+
 # Local Development Setup
 
 ## 1. Clone the repository
